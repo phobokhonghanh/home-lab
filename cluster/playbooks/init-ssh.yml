@@ -1,0 +1,19 @@
+---
+- name: Initial SSH Connectivity
+  hosts: all
+  become: false # Runs locally first or as user
+  gather_facts: false
+  tasks:
+    - name: Ensure public key exists locally
+      delegate_to: localhost
+      ansible.builtin.command: ssh-keygen -t rsa -b 4096 -f ~/.ssh/id_rsa -N ""
+      args:
+        creates: ~/.ssh/id_rsa
+      run_once: true
+
+    - name: Install SSH Key to Root Account (Requires User Password + Sudo)
+      ansible.posix.authorized_key:
+        user: root
+        state: present
+        key: "{{ lookup('file', '~/.ssh/id_rsa.pub') }}"
+      become: true # We connect as user, but install key for root

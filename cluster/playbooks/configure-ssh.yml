@@ -1,0 +1,31 @@
+---
+- name: Configure SSH Security
+  hosts: all
+  become: true
+  tasks:
+    # NOTE: openssh-server must already be installed for Ansible to connect.
+    # This task ensures it's present and manages the package state.
+    - name: Ensure OpenSSH Server is present
+      ansible.builtin.apt:
+        name: openssh-server
+        state: present
+
+    - name: Configure SSH Daemon settings
+      ansible.builtin.lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^#?{{ item.key }}'
+        line: '{{ item.key }} {{ item.value }}'
+        state: present
+        backup: yes
+        validate: 'sshd -t -f %s'
+      loop:
+        - { key: 'PermitRootLogin', value: 'prohibit-password' }
+        - { key: 'PasswordAuthentication', value: 'yes' }
+        - { key: 'PubkeyAuthentication', value: 'yes' }
+      notify: Restart sshd
+
+  handlers:
+    - name: Restart sshd
+      ansible.builtin.service:
+        name: ssh
+        state: restarted

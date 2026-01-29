@@ -1,0 +1,56 @@
+---
+- name: Install Common Tools and Basic Libs
+  hosts: all
+  become: true
+  tasks:
+    - name: Update package lists (Debian-based)
+      ansible.builtin.apt:
+        update_cache: true
+      when: ansible_os_family == "Debian"
+
+    - name: Install basic packages (Debian/Ubuntu)
+      ansible.builtin.apt:
+        name:
+          - curl
+          - wget
+          - vim
+          - git
+          - unzip
+          - htop
+          - net-tools
+          - tmux
+          - tree
+          - build-essential
+          - python3
+          - python3-pip
+          - software-properties-common
+          - traceroute
+          - dnsutils
+          - tcpdump
+          - nmap
+          - iotop
+          - sysstat
+          - iftop
+          - iperf3
+          - ntp
+          - lm-sensors
+        state: present
+        update_cache: true
+        cache_valid_time: 3600
+      when: ansible_os_family == "Debian"
+
+    - name: Ensure NTP service is active
+      ansible.builtin.service:
+        name: ntp
+        state: started
+        enabled: true
+
+    - name: Set Timezone to Asia/Bangkok
+      community.general.timezone:
+        name: Asia/Bangkok
+
+    - name: Detect sensors (non-interactive)
+      ansible.builtin.command: sensors-detect --auto
+      register: sensors_detect
+      changed_when: "'Changes were made' in sensors_detect.stdout"
+      failed_when: false
