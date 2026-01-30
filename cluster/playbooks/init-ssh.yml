@@ -1,7 +1,7 @@
 ---
 - name: Initial SSH Connectivity
   hosts: all
-  become: false # Runs locally first or as user
+  become: false
   gather_facts: false
   tasks:
     - name: Ensure public key exists locally
@@ -16,4 +16,4 @@
         user: root
         state: present
         key: "{{ lookup('file', '~/.ssh/id_rsa.pub') }}"
-      become: true # We connect as user, but install key for root
+      become: true
