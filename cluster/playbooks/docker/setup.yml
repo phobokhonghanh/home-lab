@@ -1,0 +1,6 @@
+---
+- name: Setup Docker (Install)
+  hosts: docker
+  become: true
+  roles:
+    - docker

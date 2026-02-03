@@ -1,0 +1,7 @@
+---
+- import_tasks: libs.yml
+  tags: libs
+- import_tasks: ssh.yml
+  tags: ssh
+- import_tasks: power.yml
+  tags: power

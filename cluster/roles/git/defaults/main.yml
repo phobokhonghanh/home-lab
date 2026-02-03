@@ -1,0 +1,7 @@
+---
+git_repositories: []
+# Example:
+# git_repositories:
+#   - repo: "https://github.com/example/repo.git"
+#     dest: "/opt/repo"
+#     version: "main"

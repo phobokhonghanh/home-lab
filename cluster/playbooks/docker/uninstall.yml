@@ -1,0 +1,7 @@
+---
+- name: Uninstall Docker
+  hosts: docker
+  become: true
+  roles:
+    - role: docker
+      tasks_from: uninstall

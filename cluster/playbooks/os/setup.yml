@@ -1,0 +1,6 @@
+---
+- name: Setup Operating System (OS Role)
+  hosts: os
+  become: true
+  roles:
+    - os

@@ -1,0 +1,7 @@
+---
+- name: Clean Docker Resources
+  hosts: docker
+  become: true
+  roles:
+    - role: docker
+      tasks_from: clean

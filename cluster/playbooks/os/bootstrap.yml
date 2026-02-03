@@ -1,6 +1,6 @@
 ---
 - name: Initial SSH Connectivity
-  hosts: all
+  hosts: os
   become: false
   gather_facts: false
   tasks:

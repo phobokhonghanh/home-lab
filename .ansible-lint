@@ -1,0 +1,9 @@
+---
+profile: min
+# rules:
+#   enable-list:
+#     - syntax-check
+#   disable-list:
+#     - no-changed-when
+#     - no-handler
+#     - command-instead-of-module

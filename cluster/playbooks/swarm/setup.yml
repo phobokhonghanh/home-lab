@@ -1,0 +1,14 @@
+---
+- name: Initialize Swarm Manager
+  hosts: manager
+  become: true
+  roles:
+    - role: swarm
+      tasks_from: init
+
+- name: Join Workers to Swarm
+  hosts: workers
+  become: true
+  roles:
+    - role: swarm
+      tasks_from: join

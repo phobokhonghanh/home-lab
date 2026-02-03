@@ -1,0 +1,7 @@
+---
+- name: Rollback OS Settings
+  hosts: os
+  become: true
+  roles:
+    - role: os
+      tasks_from: rollback

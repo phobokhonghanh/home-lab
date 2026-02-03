@@ -1,0 +1,21 @@
+# Ansible
+*.retry
+*.log
+inventory/*.ini.save
+inventory/*.ini.old
+ansible_output.txt
+
+# SSH Keys
+id_rsa
+id_rsa.pub
+*.pem
+*.key
+
+# Temporary Files
+.DS_Store
+tmp/
+.tmp/
+
+# Editor
+.vscode/
+.idea/

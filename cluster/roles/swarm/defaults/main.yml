@@ -1,0 +1,3 @@
+---
+swarm_port: 2377
+swarm_manager_ip: "{{ hostvars[groups['manager'][0]]['ansible_host'] }}"

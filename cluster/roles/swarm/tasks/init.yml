@@ -1,0 +1,23 @@
+---
+- name: Determine Swarm Status
+  ansible.builtin.shell: docker info | grep Swarm | awk '{print $2}'
+  register: swarm_status
+  changed_when: false
+  ignore_errors: true
+
+- name: Initialize Swarm Manager
+  ansible.builtin.shell: |
+    docker swarm init --advertise-addr {{ swarm_manager_ip }}
+  register: swarm_init_output
+  changed_when: "'Swarm initialized' in swarm_init_output.stdout"
+  when: swarm_status.stdout != "active"
+
+- name: Retrieve Worker Join Token
+  ansible.builtin.command: docker swarm join-token -q worker
+  register: worker_token
+  when: swarm_status.stdout == "active" or "'Swarm initialized' in swarm_init_output.stdout"
+
+- name: Register Worker Token
+  ansible.builtin.set_fact:
+    worker_join_token: "{{ worker_token.stdout }}"
+  when: worker_token.stdout is defined

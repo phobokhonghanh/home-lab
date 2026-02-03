@@ -1,0 +1,5 @@
+---
+git_repositories:
+  - repo: "https://{{ git_user }}:{{ git_token }}@domain_git/repo_name.git"
+    dest: "/path/to/dest"
+    version: "main"
