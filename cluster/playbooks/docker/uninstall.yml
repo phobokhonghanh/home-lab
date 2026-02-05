@@ -1,7 +1,9 @@
 ---
-- name: Uninstall Docker
+- name: Uninstall Docker Engine
   hosts: docker
   become: true
-  roles:
-    - role: docker
-      tasks_from: uninstall
+  tasks:
+    - name: Run Docker Uninstallation
+      ansible.builtin.include_role:
+        name: docker
+        tasks_from: uninstall

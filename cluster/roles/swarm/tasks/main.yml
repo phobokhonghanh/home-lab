@@ -1,5 +1,3 @@
 ---
-- import_tasks: init.yml
-  tags: init
-- import_tasks: join.yml
-  tags: join
+# This main file is empty to prevent accidental execution of all tasks.
+# Use include_role with tasks_from to execute specific modules (init, join, leave).

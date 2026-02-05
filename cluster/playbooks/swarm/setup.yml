@@ -2,13 +2,17 @@
 - name: Initialize Swarm Manager
   hosts: manager
   become: true
-  roles:
-    - role: swarm
-      tasks_from: init
+  tasks:
+    - name: Run Swarm Init
+      ansible.builtin.include_role:
+        name: swarm
+        tasks_from: init
 
 - name: Join Workers to Swarm
   hosts: workers
   become: true
-  roles:
-    - role: swarm
-      tasks_from: join
+  tasks:
+    - name: Run Swarm Join
+      ansible.builtin.include_role:
+        name: swarm
+        tasks_from: join

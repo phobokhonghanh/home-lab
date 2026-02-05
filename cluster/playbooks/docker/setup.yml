@@ -1,6 +1,9 @@
 ---
-- name: Setup Docker (Install)
+- name: Install Docker Engine
   hosts: docker
   become: true
-  roles:
-    - docker
+  tasks:
+    - name: Run Docker Installation
+      ansible.builtin.include_role:
+        name: docker
+        tasks_from: install

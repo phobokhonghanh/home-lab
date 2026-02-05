@@ -54,10 +54,18 @@ Hãy làm theo từng bước dưới đây để thiết lập hệ thống t�
 
 ### 1. Chuẩn bị (Prerequisites)
 
-Trên máy của bạn (Control Node), cài đặt các công cụ cần thiết:
+Trên máy của bạn (Control Node), chạy script sau để tự động cài đặt Ansible (bản mới nhất) và các phụ trợ cần thiết:
+
 ```bash
-sudo apt update && sudo apt install ansible sshpass -y
+# Cấp quyền và chạy script setup môi trường
+chmod +x setup_env.sh
+./setup_env.sh
+
+# Sau khi chạy xong, hãy refresh lại terminal
+source ~/.bashrc
 ```
+
+> **Tại sao cần script này?** Nó đảm bảo bạn có **Ansible Core 2.14+**, cần thiết để điều khiển các server chạy Ubuntu 24.04 (Python 3.12).
 
 Khai báo các máy vào `cluster/inventory/init-home-lab.ini` (dành cho cài đặt ban đầu):
 ```ini

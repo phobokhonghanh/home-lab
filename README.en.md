@@ -54,10 +54,18 @@ Follow these steps to set up your system from scratch.
 
 ### 1. Prerequisites
 
-On your Control Node, install the necessary tools:
+On your Control Node, run the following script to automatically install the latest Ansible and necessary dependencies:
+
 ```bash
-sudo apt update && sudo apt install ansible sshpass -y
+# Grant permission and run the setup script
+chmod +x setup_env.sh
+./setup_env.sh
+
+# After completion, refresh your terminal
+source ~/.bashrc
 ```
+
+> **Why this script?** It ensures you have **Ansible Core 2.14+**, which is required to manage servers running Ubuntu 24.04 (Python 3.12).
 
 Define your servers in `cluster/inventory/init-home-lab.ini` (for initial setup):
 ```ini

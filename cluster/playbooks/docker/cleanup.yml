@@ -2,6 +2,8 @@
 - name: Clean Docker Resources
   hosts: docker
   become: true
-  roles:
-    - role: docker
-      tasks_from: clean
+  tasks:
+    - name: Run Docker Cleanup
+      ansible.builtin.include_role:
+        name: docker
+        tasks_from: clean

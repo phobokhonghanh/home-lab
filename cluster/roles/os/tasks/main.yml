@@ -1,7 +1,2 @@
 ---
-- import_tasks: libs.yml
-  tags: libs
-- import_tasks: ssh.yml
-  tags: ssh
-- import_tasks: power.yml
-  tags: power
+# File main.yml empty for safety. Use include_role with tasks_from.
