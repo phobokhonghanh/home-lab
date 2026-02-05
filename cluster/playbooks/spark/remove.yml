@@ -1,0 +1,55 @@
+---
+- name: Remove Spark Docker Stack from Swarm
+  hosts: spark_managers
+  become: true
+  vars_files:
+    - vars/main.yml
+  tasks:
+    - name: Check if the stack exists
+      shell: docker stack ls | grep '{{ stack_name }}' | awk '{print $1}'
+      register: stack_exists
+      changed_when: false
+      ignore_errors: true
+
+    - name: Remove the Docker stack
+      command: docker stack rm {{ stack_name }}
+      when: stack_exists.rc == 0
+      register: stack_removed
+      changed_when: stack_removed.rc == 0
+
+    - name: Wait for stack removal to complete
+      command: docker stack ps {{ stack_name }}
+      register: stack_ps
+      retries: 5
+      delay: 5
+      until: stack_ps.rc != 0
+      when: stack_removed.rc == 0
+      ignore_errors: true
+
+    - name: Verify stack is removed
+      shell: docker stack ls | grep '{{ stack_name }}' | awk '{print $1}'
+      register: verify_stack_removed
+      changed_when: false
+      failed_when: verify_stack_removed.rc == 0
+      ignore_errors: true
+
+- name: Clean Docker Resources
+  hosts: spark_clusters
+  become: true
+  tasks:
+    - name: Get Swarm Status
+      shell: docker info | grep Swarm | awk '{print $2}'
+      register: swarm_status
+      changed_when: false
+
+    - name: Display the Node Swarm Status
+      debug:
+        msg: "Node has Swarm Status: {{ swarm_status.stdout }}"
+
+    - name: Clean Docker resources
+      shell: |
+        docker network prune -f
+        docker container prune -f
+        docker image prune -f
+        docker system prune -f
+      when: swarm_status.stdout == "active"

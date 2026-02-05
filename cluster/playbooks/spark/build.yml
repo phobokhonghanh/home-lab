@@ -1,0 +1,34 @@
+---
+- name: Build Docker Images Locally on Nodes
+  hosts: spark_clusters
+  become: true
+  vars_files:
+    - vars/main.yml
+  tasks:
+    - name: Build Docker Image - pyjob
+      shell: "{{ pyjob_build }} 2>&1 | tee pyjob_build.log"
+      args:
+        chdir: "{{ process_build_dir }}"
+      register: pyjob_output
+
+    - name: Show pyjob build logs
+      debug:
+        var: pyjob_output.stdout_lines
+
+    - name: Build Docker Image - bitnami/spark:3.5.1-custom
+      shell: "{{ spark_build }} 2>&1 | tee spark_build.log"
+      args:
+        chdir: "{{ process_build_dir }}"
+      register: spark_output
+      changed_when: "'Successfully built' in spark_output.stdout or 'Successfully tagged' in spark_output.stdout"
+
+    - name: Show spark build logs
+      debug:
+        var: spark_output.stdout_lines
+
+    - name: Remove dangling Docker images
+      shell: |
+        docker images -q -f "dangling=true" | xargs -r docker rmi
+      register: clean_images
+      changed_when: clean_images.rc == 0
+      ignore_errors: true

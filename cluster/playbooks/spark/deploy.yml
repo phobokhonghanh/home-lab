@@ -1,0 +1,69 @@
+---
+- name: Copy Spark Stack Files to Cluster Nodes
+  hosts: spark_clusters
+  become: true
+  tasks:
+    - name: Copy directory from control node to target nodes
+      synchronize:
+        src: /opt/sdp/
+        dest: /opt/sdp/
+        recursive: true
+        delete: true
+      delegate_to: "{{ groups['spark_managers'][0] }}"
+
+- name: Add Labels to Docker Swarm Nodes
+  hosts: spark_clusters
+  become: true
+  tasks:
+    - name: Retrieve hostname
+      shell: hostname
+      register: node_hostname
+      changed_when: false
+
+    - name: Apply labels to Docker nodes
+      shell: docker node update --label-add {{ labels }}=true {{ node_hostname.stdout }}
+      when: labels is defined
+      delegate_to: "{{ groups['spark_managers'][0] }}"
+
+- name: Deploy Spark Stack on Docker Swarm
+  hosts: spark_managers
+  become: true
+  vars_files:
+    - vars/main.yml
+  tasks:
+    - name: Log stack deployment info
+      debug:
+        msg: "Deploying stack: {{ stack_name }} with network: {{ networks }}"
+
+    - name: Create Docker overlay network if not exists
+      shell: docker network create --driver overlay {{ networks }}
+      ignore_errors: true
+
+    - name: Load default environment variables from file
+      shell: grep '=' {{ default_env_file }} | grep -v '^#' | tr '\n' ' '
+      register: default_env_vars
+      changed_when: false
+      ignore_errors: true
+
+    - name: Load user environment variables from file
+      shell: grep '=' {{ user_env_file }} | grep -v '^#' | tr '\n' ' '
+      register: user_env_vars
+      changed_when: false
+      ignore_errors: true
+
+    - name: Convert environment variables to dictionary
+      set_fact:
+        docker_stack_env: "{{ default_env_vars.stdout + user_env_vars.stdout }}"
+
+    - name: Display Docker Stack deploy command
+      debug:
+        msg: |
+          DEPLOY CMD: {{ docker_stack_env }} docker stack deploy \
+          -c {{ stack_file }} \
+          --detach=true {{ stack_name }}
+
+    - name: Deploy Spark Stack
+      shell: |
+        {{ docker_stack_env }} docker stack deploy \
+        -c {{ stack_file }} \
+        --detach=true {{ stack_name }}

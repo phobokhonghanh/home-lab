@@ -185,6 +185,23 @@ Quản lý Source Code Repository.
 | `./cluster/scripts/git/pull.sh [target]` | `[git]` | Clone hoặc cập nhật Git repositories đã cấu hình trên target nodes. |
 | `./cluster/scripts/git/status.sh [target]` | `[git]` | Kiểm tra trạng thái repositories (nhánh, commit, thay đổi). |
 
+#### Module Spark
+Triển khai Apache Spark Cluster trên Docker Swarm.
+
+| Script | Nhóm Mặc định | Mô tả |
+|--------|---------------|-------|
+| `./cluster/scripts/spark/deploy.sh` | `[spark_managers]` | Triển khai Spark stack (master, worker, history server, pyjob). |
+| `./cluster/scripts/spark/remove.sh` | `[spark_managers]` | **Nguy hiểm**: Xóa Spark stack và dọn dẹp Docker resources. |
+| `./cluster/scripts/spark/build.sh [target]` | `[spark_clusters]` | Build custom Docker images (pyjob, spark-custom). |
+| `./cluster/scripts/spark/status.sh` | `[spark_managers]` | Kiểm tra trạng thái Spark stack (services, tasks). |
+
+**Inventory Groups cho Spark:**
+- `[spark_managers]`: Node chạy Spark Master và History Server.
+- `[spark_workers]`: Các node chạy Spark Worker.
+- `[spark_clusters]`: Tất cả Spark nodes (kết hợp managers + workers).
+
+**Stack Path:** `cluster/stacks/spark/` chứa compose file và configs.
+
 ## Giấy phép
 
 Được phân phối dưới giấy phép MIT License. Xem file `LICENSE` để biết thêm chi tiết.

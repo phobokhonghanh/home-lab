@@ -185,6 +185,23 @@ Repository management.
 | `./cluster/scripts/git/pull.sh [target]` | `[git]` | Clones or updates configured Git repositories on target nodes. |
 | `./cluster/scripts/git/status.sh [target]` | `[git]` | Checks status of cloned repositories (branch, commit, diffs). |
 
+#### Spark Module
+Deploy Apache Spark Cluster on Docker Swarm.
+
+| Script | Default Group | Description |
+|--------|---------------|-------------|
+| `./cluster/scripts/spark/deploy.sh` | `[spark_managers]` | Deploys Spark stack (master, worker, history server, pyjob). |
+| `./cluster/scripts/spark/remove.sh` | `[spark_managers]` | **Destructive**: Removes Spark stack and cleans Docker resources. |
+| `./cluster/scripts/spark/build.sh [target]` | `[spark_clusters]` | Builds custom Docker images (pyjob, spark-custom). |
+| `./cluster/scripts/spark/status.sh` | `[spark_managers]` | Checks Spark stack status (services, tasks). |
+
+**Inventory Groups for Spark:**
+- `[spark_managers]`: Node running Spark Master and History Server.
+- `[spark_workers]`: Nodes running Spark Workers.
+- `[spark_clusters]`: All Spark nodes (managers + workers combined).
+
+**Stack Path:** `cluster/stacks/spark/` contains compose file and configs.
+
 ## License
 
 Distributed under the MIT License. See `LICENSE` for more information.

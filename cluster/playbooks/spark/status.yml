@@ -1,0 +1,39 @@
+---
+- name: Check Spark Stack Status
+  hosts: spark_managers
+  become: true
+  vars_files:
+    - vars/main.yml
+  tasks:
+    - name: Check if stack exists
+      shell: docker stack ls | grep '{{ stack_name }}'
+      register: stack_status
+      changed_when: false
+      failed_when: false
+
+    - name: Get Spark services status
+      shell: docker stack services {{ stack_name }} --format 'table {{ "{{" }}.Name{{ "}}" }}\t{{ "{{" }}.Replicas{{ "}}" }}\t{{ "{{" }}.Image{{ "}}" }}'
+      register: services_status
+      changed_when: false
+      failed_when: false
+      when: stack_status.rc == 0
+
+    - name: Get Spark tasks status
+      shell: docker stack ps {{ stack_name }} --format 'table {{ "{{" }}.Name{{ "}}" }}\t{{ "{{" }}.Node{{ "}}" }}\t{{ "{{" }}.CurrentState{{ "}}" }}'
+      register: tasks_status
+      changed_when: false
+      failed_when: false
+      when: stack_status.rc == 0
+
+    - name: Display Spark Stack Status
+      debug:
+        msg:
+          - "=== SPARK STACK STATUS ==="
+          - ""
+          - "Stack: {{ stack_name }}"
+          - ""
+          - "Services:"
+          - "{{ services_status.stdout_lines | default(['Stack not deployed']) }}"
+          - ""
+          - "Tasks:"
+          - "{{ tasks_status.stdout_lines | default(['Stack not deployed']) }}"

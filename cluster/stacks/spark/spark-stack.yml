@@ -1,0 +1,96 @@
+version: "3.9"
+x-spark-common: &spark-common
+  image: bitnami/spark:${SPARK_TAG:-3.5.1}
+  networks:
+    - swarm_networks
+x-spark-worker-common: &spark-worker-common
+  <<: *spark-common
+  environment:
+    - SPARK_MODE=${WORKER_SPARK_MODE:-worker}
+    - SPARK_MASTER_URL=${WORKER_SPARK_MASTER_URL:-spark://spark-master:7077}
+    - SPARK_WORKER_MEMORY=${WORKER_SPARK_WORKER_MEMORY:-1G}
+    - SPARK_WORKER_CORES=${WORKER_SPARK_WORKER_CORES:-1}
+    - SPARK_EVENTLOG_ENABLED=${SPARK_EVENTLOG_ENABLED:-true}
+  volumes:
+    - ${SPARK_PROJECT_DIR:-.}/spark/stack/configs/spark-defaults.conf:/opt/bitnami/spark/conf/spark-defaults.conf
+    - ${SPARK_PROJECT_DIR:-.}/spark/stack/configs/log4j2.properties:/opt/bitnami/spark/conf/log4j2.properties
+    - ${SOURCE_CODE:-./}:/opt/repo_process
+    - spark_history_server_logs:/opt/bitnami/spark/logs
+  deploy:
+    replicas: ${WORKER_REPLICAS:-1}
+    placement:
+      constraints:
+        - node.labels.spark_workers == true
+x-spark-master-common: &spark-master-common
+  <<: *spark-common
+  hostname: ${MASTER_SPARK_MASTER_HOST:-spark-master}
+  ports:
+    - target: ${MASTER_SPARK_MASTER_WEBUI_PORT_PUBLISHED:-8080}
+      published: ${MASTER_SPARK_MASTER_WEBUI_PORT:-8080}
+      mode: host
+  volumes:
+    - ${SPARK_PROJECT_DIR:-.}/spark/stack/configs/spark-defaults.conf:/opt/bitnami/spark/conf/spark-defaults.conf
+    - ${SPARK_PROJECT_DIR:-.}/spark/stack/configs/log4j2.properties:/opt/bitnami/spark/conf/log4j2.properties
+    - ${SOURCE_CODE:-./}:/opt/repo_process
+  environment:
+    - SPARK_MODE=${MASTER_SPARK_MODE:-master}
+    - SPARK_MASTER_WEBUI_PORT=${MASTER_SPARK_MASTER_WEBUI_PORT:-8080}
+    - SPARK_MASTER_PORT=${MASTER_SPARK_MASTER_PORT:-7077}
+    - SPARK_MASTER_HOST=${MASTER_SPARK_MASTER_HOST:-spark-master}
+  deploy:
+    replicas: ${MASTER_REPLICAS:-1}
+    placement:
+      constraints:
+        - node.labels.spark_managers == true
+services:
+  spark-master:
+    <<: *spark-master-common
+  spark-worker:
+    <<: *spark-worker-common
+  spark-history-server:
+    <<: *spark-common
+    hostname: history-server
+    ports:
+      - target: 18080
+        published: 18080
+        mode: host
+    command: /opt/bitnami/spark/sbin/start-history-server.sh
+    environment:
+      - SPARK_MASTER_URL=${WORKER_SPARK_MASTER_URL:-spark://spark-master:7077}
+    depends_on:
+      - spark-master
+      - spark-worker
+    volumes:
+      - ${SPARK_PROJECT_DIR:-.}/spark/stack/configs/spark-defaults.conf:/opt/bitnami/spark/conf/spark-defaults.conf
+      - ${SPARK_PROJECT_DIR:-.}/spark/stack/configs/log4j2.properties:/opt/bitnami/spark/conf/log4j2.properties
+      - spark_history_server_logs:/opt/bitnami/spark/logs
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.labels.spark_managers == true
+  pyjob:
+    networks:
+      - swarm_networks
+    image: pyjob:latest
+    command: tail -f /dev/null
+    ports:
+      - target: 4040
+        published: 4040
+        mode: host
+    env_file:
+      - ${SPARK_PROJECT_DIR:-.}/spark/stack/configs/.prod.env
+    volumes:
+      - ${SOURCE_CODE:-./}:/opt/repo_process
+      - spark_history_server_logs:/opt/bitnami/spark/logs
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.labels.spark_managers == true
+networks:
+  swarm_networks:
+    name: ${NETWORKS_NAME:-swarm_networks}
+    external: true
+volumes:
+  spark_history_server_logs:
