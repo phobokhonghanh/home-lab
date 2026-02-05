@@ -1,0 +1,36 @@
+---
+- name: Swarm Cluster Status
+  hosts: manager
+  become: true
+  tasks:
+    - name: Get Swarm Node Status
+      ansible.builtin.shell: docker node ls --format 'table {{.Hostname}}\t{{.Status}}\t{{.Availability}}\t{{.ManagerStatus}}'
+      register: node_status
+      changed_when: false
+      failed_when: false
+
+    - name: Get Swarm Service Status
+      ansible.builtin.shell: docker service ls --format 'table {{.Name}}\t{{.Mode}}\t{{.Replicas}}\t{{.Image}}'
+      register: service_status
+      changed_when: false
+      failed_when: false
+
+    - name: Get Swarm Network Status
+      ansible.builtin.shell: docker network ls --filter driver=overlay --format 'table {{.Name}}\t{{.Driver}}\t{{.Scope}}'
+      register: network_status
+      changed_when: false
+      failed_when: false
+
+    - name: Display Swarm Cluster Status
+      ansible.builtin.debug:
+        msg:
+          - "=== SWARM CLUSTER STATUS ==="
+          - ""
+          - "Nodes:"
+          - "{{ node_status.stdout_lines }}"
+          - ""
+          - "Services:"
+          - "{{ service_status.stdout_lines }}"
+          - ""
+          - "Overlay Networks:"
+          - "{{ network_status.stdout_lines }}"

@@ -1,0 +1,45 @@
+---
+- name: Check Git Repositories Status
+  hosts: "{{ target | default('git') }}"
+  become: true
+  vars_files:
+    - vars/main.yml
+  tasks:
+    - name: Check Git Repositories Status
+      ansible.builtin.shell: |
+        if [ -d "{{ item.dest }}" ]; then
+          cd "{{ item.dest }}"
+          echo "Repository: {{ item.repo }}"
+          echo "Path: {{ item.dest }}"
+          echo "Branch: $(git branch --show-current)"
+          echo "Commit: $(git log -1 --oneline)"
+          echo "Status: $(git status -s | wc -l) modified files"
+          echo "---"
+        else
+          echo "Repository: {{ item.repo }}"
+          echo "Path: {{ item.dest }}"
+          echo "Status: NOT CLONED"
+          echo "---"
+        fi
+      loop: "{{ git_repositories | default([]) }}"
+      register: git_status
+      changed_when: false
+      failed_when: false
+
+    - name: Display Git Repositories Status
+      ansible.builtin.debug:
+        msg:
+          - "=== Git Repositories Status ==="
+          - "Node: {{ inventory_hostname }}"
+          - ""
+          - "{{ git_status.results | map(attribute='stdout_lines') | list }}"
+      when: git_repositories is defined and git_repositories | length > 0
+
+    - name: Display No Repositories Message
+      ansible.builtin.debug:
+        msg:
+          - "=== Git Repositories Status ==="
+          - "Node: {{ inventory_hostname }}"
+          - ""
+          - "No repositories configured in git_repositories variable"
+      when: git_repositories is not defined or git_repositories | length == 0

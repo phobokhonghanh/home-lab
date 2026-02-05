@@ -1,0 +1,44 @@
+---
+- name: OS Status Check
+  hosts: "{{ target | default('os') }}"
+  become: true
+  tasks:
+    - name: Check Installed Packages
+      ansible.builtin.shell: dpkg -l | grep -E 'curl|git|docker|vim|htop' | awk '{print $2, $3}'
+      register: installed_packages
+      changed_when: false
+      failed_when: false
+
+    - name: Check SSH Configuration
+      ansible.builtin.shell: grep -E '^PasswordAuthentication|^PermitRootLogin|^PubkeyAuthentication' /etc/ssh/sshd_config
+      register: ssh_config
+      changed_when: false
+      failed_when: false
+
+    - name: Check Power Management
+      ansible.builtin.shell: grep -E '^HandleLidSwitch' /etc/systemd/logind.conf
+      register: power_config
+      changed_when: false
+      failed_when: false
+
+    - name: Check Timezone
+      ansible.builtin.command: timedatectl show --property=Timezone --value
+      register: timezone_check
+      changed_when: false
+
+    - name: Display Status
+      ansible.builtin.debug:
+        msg:
+          - "=== OS Status ==="
+          - "Node: {{ inventory_hostname }}"
+          - ""
+          - "Packages:"
+          - "{{ installed_packages.stdout_lines }}"
+          - ""
+          - "SSH Config:"
+          - "{{ ssh_config.stdout_lines }}"
+          - ""
+          - "Power Config:"
+          - "{{ power_config.stdout_lines }}"
+          - ""
+          - "Timezone: {{ timezone_check.stdout }}"

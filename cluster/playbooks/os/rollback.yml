@@ -1,7 +1,44 @@
 ---
-- name: Rollback OS Settings
-  hosts: os
+- name: Rollback OS Configuration
+  hosts: "{{ target | default('os') }}"
   become: true
-  roles:
-    - role: os
-      tasks_from: rollback
+  tasks:
+    - name: Enable Password Authentication
+      ansible.builtin.lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^#?PasswordAuthentication'
+        line: 'PasswordAuthentication yes'
+        state: present
+      notify: Restart sshd
+
+    - name: Enable Root Login
+      ansible.builtin.lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^#?PermitRootLogin'
+        line: 'PermitRootLogin yes'
+        state: present
+      notify: Restart sshd
+
+    - name: Restore Lid Switch
+      ansible.builtin.lineinfile:
+        path: /etc/systemd/logind.conf
+        regexp: '^HandleLidSwitch='
+        line: '#HandleLidSwitch=suspend'
+        state: present
+      notify: Restart logind
+
+    - name: Enable Suspend
+      ansible.builtin.command: systemctl unmask sleep.target suspend.target hibernate.target hybrid-sleep.target
+      changed_when: false
+      ignore_errors: true
+
+  handlers:
+    - name: Restart sshd
+      ansible.builtin.service:
+        name: ssh
+        state: restarted
+
+    - name: Restart logind
+      ansible.builtin.systemd:
+        name: systemd-logind
+        state: restarted

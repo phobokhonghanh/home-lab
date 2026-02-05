@@ -1,0 +1,32 @@
+---
+- name: Install System Libraries
+  hosts: "{{ target | default('os') }}"
+  become: true
+  tasks:
+    - name: Update apt cache
+      ansible.builtin.apt:
+        update_cache: yes
+        cache_valid_time: 3600
+      when: ansible_os_family == "Debian"
+
+    - name: Install common dependencies (Debian/Ubuntu)
+      ansible.builtin.apt:
+        name:
+          - ca-certificates
+          - curl
+          - gnupg
+          - lsb-release
+          - software-properties-common
+          - git
+          - vim
+          - htop
+          - net-tools
+          - python3-pip
+          - python3-venv
+          - sshpass
+        state: present
+      when: ansible_os_family == "Debian"
+
+    - name: Set Timezone to Asia/Ho_Chi_Minh
+      community.general.timezone:
+        name: Asia/Ho_Chi_Minh

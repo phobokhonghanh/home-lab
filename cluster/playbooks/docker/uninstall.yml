@@ -1,9 +1,42 @@
 ---
-- name: Uninstall Docker Engine
-  hosts: docker
+- name: Uninstall Docker
+  hosts: "{{ target | default('docker') }}"
   become: true
   tasks:
-    - name: Run Docker Uninstallation
-      ansible.builtin.include_role:
+    - name: Stop Docker Service
+      ansible.builtin.service:
         name: docker
-        tasks_from: uninstall
+        state: stopped
+      ignore_errors: true
+
+    - name: Remove Docker Packages (Ubuntu/Debian)
+      ansible.builtin.apt:
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+          - docker-compose-plugin
+        state: absent
+        autoremove: true
+      when: ansible_os_family == "Debian"
+
+    - name: Remove Docker Data
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      with_items:
+        - /var/lib/docker
+        - /var/lib/containerd
+        - /etc/docker
+        - /var/run/docker.sock
+
+    - name: Verify Docker is Removed
+      ansible.builtin.command: docker --version
+      register: docker_check
+      ignore_errors: true
+      changed_when: false
+
+    - name: Display Docker Removal Status
+      ansible.builtin.debug:
+        msg: Docker has been successfully removed
+      when: docker_check.rc != 0

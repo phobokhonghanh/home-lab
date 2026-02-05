@@ -1,0 +1,55 @@
+---
+- name: Docker Status Check
+  hosts: "{{ target | default('docker') }}"
+  become: true
+  tasks:
+    - name: Check Docker Version
+      ansible.builtin.shell: docker --version
+      register: docker_version
+      changed_when: false
+      failed_when: false
+
+    - name: Check Docker Service Status
+      ansible.builtin.shell: systemctl status docker | grep -E 'Active|Loaded' | head -2
+      register: docker_service
+      changed_when: false
+      failed_when: false
+
+    - name: Check Running Containers
+      ansible.builtin.shell: docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Image}}'
+      register: containers_status
+      changed_when: false
+      failed_when: false
+
+    - name: Check Docker Images
+      ansible.builtin.shell: docker images --format 'table {{.Repository}}\t{{.Tag}}\t{{.Size}}'
+      register: images_status
+      changed_when: false
+      failed_when: false
+
+    - name: Check Docker Disk Usage
+      ansible.builtin.shell: docker system df
+      register: disk_usage
+      changed_when: false
+      failed_when: false
+
+    - name: Display Docker Status
+      ansible.builtin.debug:
+        msg:
+          - "=== Docker Status ==="
+          - "Node: {{ inventory_hostname }}"
+          - ""
+          - "Docker Version:"
+          - "{{ docker_version.stdout_lines }}"
+          - ""
+          - "Service Status:"
+          - "{{ docker_service.stdout_lines }}"
+          - ""
+          - "Running Containers:"
+          - "{{ containers_status.stdout_lines }}"
+          - ""
+          - "Images:"
+          - "{{ images_status.stdout_lines }}"
+          - ""
+          - "Disk Usage:"
+          - "{{ disk_usage.stdout_lines }}"

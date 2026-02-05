@@ -1,0 +1,39 @@
+---
+- name: Configure Power Management
+  hosts: "{{ target | default('os') }}"
+  become: true
+  tasks:
+    - name: Ignore Lid Switch
+      ansible.builtin.lineinfile:
+        path: /etc/systemd/logind.conf
+        regexp: '^#?HandleLidSwitch='
+        line: 'HandleLidSwitch=ignore'
+        state: present
+      notify: Restart logind
+
+    - name: Ignore Lid Switch External Power
+      ansible.builtin.lineinfile:
+        path: /etc/systemd/logind.conf
+        regexp: '^#?HandleLidSwitchExternalPower='
+        line: 'HandleLidSwitchExternalPower=ignore'
+        state: present
+      notify: Restart logind
+
+    - name: Ignore Lid Switch Docked
+      ansible.builtin.lineinfile:
+        path: /etc/systemd/logind.conf
+        regexp: '^#?HandleLidSwitchDocked='
+        line: 'HandleLidSwitchDocked=ignore'
+        state: present
+      notify: Restart logind
+
+    - name: Disable Suspend on AC
+      ansible.builtin.command: systemctl mask sleep.target suspend.target hibernate.target hybrid-sleep.target
+      changed_when: false
+      ignore_errors: true
+
+  handlers:
+    - name: Restart logind
+      ansible.builtin.systemd:
+        name: systemd-logind
+        state: restarted

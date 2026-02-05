@@ -1,0 +1,22 @@
+---
+- name: Pull Git Repositories
+  hosts: "{{ target | default('git') }}"
+  become: true
+  vars_files:
+    - vars/main.yml
+  tasks:
+    - name: Ensure git is installed
+      ansible.builtin.package:
+        name: git
+        state: present
+
+    - name: Pull Code from Repositories
+      ansible.builtin.git:
+        repo: "{{ item.repo }}"
+        dest: "{{ item.dest }}"
+        version: "{{ item.version | default('main') }}"
+        update: true
+        force: true
+        depth: 1
+      loop: "{{ git_repositories | default([]) }}"
+      when: git_repositories is defined and git_repositories | length > 0

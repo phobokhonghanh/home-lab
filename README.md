@@ -1,170 +1,190 @@
 <div align="center">
 
-# 🏠 Home Lab Automation System
+# 🏠 Hệ Thống Tự Động Hóa Home Lab
 
 ![Ansible](https://img.shields.io/badge/Ansible-E00-red?style=flat&logo=ansible&logoColor=white)
 ![Bash](https://img.shields.io/badge/Bash-4EAA25-green?style=flat&logo=gnu-bash&logoColor=white)
 ![Ubuntu](https://img.shields.io/badge/Ubuntu-E95420-orange?style=flat&logo=ubuntu&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-2496ED-blue?style=flat&logo=docker&logoColor=white)
 
-**Hệ thống tự động hóa biến cụm Laptop cũ thành Cloud Cluster mạnh mẽ.**
+**Hệ thống tự động hóa giúp biến các laptop cũ thành một Cloud Cluster mạnh mẽ, sẵn sàng cho môi trường production.**
 
-[English Version](README.en.md) • [Blog Kỹ thuật](docs/guide-home-lab-setup.md)
+[English Version](README.en.md) • [Hướng Dẫn Kỹ Thuật](docs/guide-home-lab-setup.md)
 
 </div>
 
 ---
+## Tổng quan
 
-## 🏗 Kiến trúc Dự án (Modular Monolithic)
+Dự án này cung cấp một bộ công cụ tự động hóa toàn diện để thiết lập, quản lý và duy trì hạ tầng home lab. Hệ thống áp dụng **kiến trúc mô-đun (modular architecture)**, trong đó mọi thành phần (OS, Docker, Swarm, Git) hoạt động độc lập, cho phép quản lý hạ tầng linh hoạt và dễ dàng mở rộng.
 
-Dự án được tổ chức theo mô hình **Modular Monolithic** với Ansible Roles, giúp dễ dàng mở rộng và bảo trì.
+## Yêu cầu tiên quyết
 
-```text
-cluster/
-├── inventory/          # 📋 Danh sách máy chủ (Hosts)
-├── vars/               # 💾 Biến cấu hình toàn cục (Credentials, Repos)
-├── roles/              # 🧱 Modules (Logic chính)
-│   ├── os/             # -> Cấu hình Hệ điều hành (SSH, Power, Libs)
-│   ├── docker/         # -> Quản lý Docker Engine
-│   ├── swarm/          # -> Quản lý Docker Swarm Cluster
-│   └── git/            # -> Quản lý Source Code
-├── playbooks/          # 🎬 Kịch bản điều phối (Gọi Roles)
-└── scripts/            # ⚡ Scripts thực thi nhanh (Wrapper)
-```
+- **Control Node**: Máy Linux hoặc WSL2 đã cài đặt Ansible (chạy `./setup_env.sh` để cài đặt).
+- **Target Nodes**: Các máy cần quản lý chạy Linux (khuyên dùng Ubuntu 20.04/22.04 LTS).
+- **Mạng**: Tất cả các node phải có thể truy cập được qua SSH từ control node.
 
-## 🚀 Quick Run (Tóm tắt)
-
-Cấp quyền thực thi cho scripts trước khi chạy:
-```bash
-chmod +x cluster/scripts/*/*.sh
-```
-
-**1. Khởi tạo (Dùng `init-home-lab.ini`)**
-*   **Init SSH**: `./cluster/scripts/os/init_connection.sh` (Bước duy nhất dùng password để copy SSH key)
-
-**2. Cài đặt & Vận hành (Dùng `home-lab.ini`)**
-*   **Install Libs**: `./cluster/scripts/os/install_libs.sh os` (Cài đặt môi trường OS - chạy qua SSH Key)
-*   **Install Docker**: `./cluster/scripts/docker/install.sh` (Cài Docker)
-*   **Setup Swarm**: `./cluster/scripts/swarm/setup.sh` (Dựng Cluster)
-*   **Deploy Code**: `./cluster/scripts/git/pull_code.sh` (Pull code)
-
-## 🛠 Hướng dẫn Cài đặt Chi tiết
-
-Hãy làm theo từng bước dưới đây để thiết lập hệ thống từ con số 0.
-
-### 1. Chuẩn bị (Prerequisites)
-
-Trên máy của bạn (Control Node), chạy script sau để tự động cài đặt Ansible (bản mới nhất) và các phụ trợ cần thiết:
+## Cấu trúc dự án
 
 ```bash
-# Cấp quyền và chạy script setup môi trường
-chmod +x setup_env.sh
-./setup_env.sh
-
-# Sau khi chạy xong, hãy refresh lại terminal
-source ~/.bashrc
+home-lab/
+├── ansible.cfg                 # Cấu hình Ansible toàn cục
+├── setup_env.sh                # Script cài đặt môi trường trên Control node
+├── cluster/
+│   ├── inventory/              # Các file chứa thông tin máy chủ (Inventory)
+│   │   ├── init-home-lab.ini   # Dùng cho kết nối lần đầu (Bootstrap)
+│   │   └── home-lab.ini        # Dùng cho các vận hành chính (Quyền Root)
+│   ├── scripts/                # Các script wrapper (Điểm truy cập)
+│   │   ├── os/                 # Cấu hình & trạng thái OS
+│   │   ├── docker/             # Quản lý Docker
+│   │   ├── swarm/              # Quản lý Swarm cluster
+│   │   └── git/                # Quản lý Git repository
+│   └── playbooks/              # Logic xử lý của Ansible
+│       ├── os/
+│       ├── docker/
+│       ├── swarm/
+│       └── git/
 ```
 
-> **Tại sao cần script này?** Nó đảm bảo bạn có **Ansible Core 2.14+**, cần thiết để điều khiển các server chạy Ubuntu 24.04 (Python 3.12).
+## Cấu hình Inventory
 
-Khai báo các máy vào `cluster/inventory/init-home-lab.ini` (dành cho cài đặt ban đầu):
+Dự án này sử dụng 2 file inventory riêng biệt nằm trong `cluster/inventory/`. Bạn cần cấu hình cả hai trước khi bắt đầu.
+
+### 1. Inventory Khởi tạo (`init-home-lab.ini`)
+Chỉ được sử dụng **duy nhất** cho script khởi tạo kết nối (`init_connection.sh`).
+
+- **Mục đích**: Khai báo thông tin kết nối ban đầu (user, mật khẩu) để thiết lập SSH keys.
+- **Các nhóm chính**:
+  - `[servers]`: Khai báo tất cả các node với user ban đầu (ví dụ: `ansible_user=ubuntu`).
+  - `[os]`: Nhóm phụ để chọn các node cần chạy bootstrap.
+
+**Ví dụ**:
 ```ini
 [servers]
-node00 ansible_host=... # Control Node
-node01 ansible_host=...
+node01 ansible_host=192.168.1.10 ansible_user=ubuntu
+node02 ansible_host=192.168.1.11 ansible_user=pi
 
 [os]
-node01 # Chỉ chạy cấu hình OS trên các node này
+node01
+node02
 ```
 
-Và `cluster/inventory/home-lab.ini` (dành cho tất cả các việc còn lại):
+### 2. Inventory Chính (`home-lab.ini`)
+Được sử dụng cho **tất cả** các hoạt động khác (cài đặt, cấu hình, triển khai).
+
+- **Mục đích**: Định nghĩa trạng thái cluster cho Ansible sau khi SSH keys đã được thiết lập. Kết nối dưới quyền `root`.
+- **Các nhóm chính**:
+  - `[os]`: Các node sẽ được cấu hình OS (thư viện, ssh, nguồn điện).
+  - `[docker]`: Các node sẽ được cài đặt Docker Engine.
+  - `[manager]`: Node duy nhất đóng vai trò Swarm Manager.
+  - `[add_workers]`: Các worker node dự kiến sẽ được thêm vào Swarm.
+  - `[remove_workers]`: Các node mục tiêu cần xóa khỏi Swarm.
+  - `[git]`: Các node sẽ thực hiện pull Git repositories.
+
+**Ví dụ**:
 ```ini
+[servers]
+node01 ansible_host=192.168.1.10
+node02 ansible_host=192.168.1.11
+node03 ansible_host=192.168.1.12
+
 [os]
-node01 # Cấu hình OS
+node01
+node02
+
+[git]
+node01
+node02
 
 [docker]
-node01 # Cài Docker
+node01
+node02
 
 [manager]
-node00
-[workers]
+node03
+
+[add_workers]
 node01
+node02
+
+[remove_workers]
+node01
+
+[all:vars]
+ansible_user=root
 ```
 
----
+## Hướng dẫn Sử dụng & Scripts
 
-### 2. Module OS: Cấu hình Hệ thống
-Module này giúp chuẩn hóa môi trường Ubuntu server.
+Mọi thao tác được thực hiện thông qua các shell script wrapper trong `cluster/scripts/`. Các script này giúp xử lý sự phức tạp của các lệnh Ansible thay cho bạn.
 
-#### Bước 2.1: Khởi tạo kết nối (Bootstrap)
-Script này sẽ copy SSH Key từ máy bạn lên toàn bộ server. Bạn chỉ cần nhập mật khẩu root 1 lần duy nhất.
-- **Script**: `./cluster/scripts/os/init_connection.sh`
-- **Playbook**: `playbooks/os/bootstrap.yml`
+### Cơ chế chọn mục tiêu (Target)
 
-#### Bước 2.2: Cài đặt thư viện (Libs)
-Cài đặt các gói cơ bản: `curl`, `git`, `htop`, `vim`, `net-tools`, `sensors`... và thiết lập Timezone.
-- **Script**: `./cluster/scripts/os/install_libs.sh`
-- **Playbook**: `playbooks/os/setup.yml` (Tags: `libs`)
+Mọi script đều chấp nhận tham số tùy chọn `TARGET`.
 
-#### Bước 2.3: Tối ưu nguồn điện (Power)
-Ngăn laptop ngủ khi gập máy (Lid Switch Ignore) và tắt chế độ tiết kiệm điện Wifi để giảm độ trễ.
-- **Script**: `./cluster/scripts/os/configure_power.sh`
-- **Playbook**: `playbooks/os/setup.yml` (Tags: `power`)
-
-#### Bước 2.4: Bảo mật SSH (Security)
-Tắt login mật khẩu (`PasswordAuthentication no`), chỉ cho phép SSH Key để đảm bảo an toàn tuyệt đối. (Trong môi trường Home Lab, bạn có thể bật lại nếu muốn tiện lợi).
-- **Script**: `./cluster/scripts/os/configure_ssh.sh`
-- **Playbook**: `playbooks/os/setup.yml` (Tags: `ssh`)
-
----
-
-### 3. Module Docker: Quản lý Container
-Module này tự động cài đặt Docker Engine bản ổn định nhất.
-
-#### Cài đặt Docker
-Tự động thêm repos, GPG key và cài đặt Docker CE + Docker Compose.
-- **Script**: `./cluster/scripts/docker/install.sh`
-- **Playbook**: `playbooks/docker/setup.yml`
-
-#### Gỡ cài đặt / Dọn dẹp
-- **Gỡ bỏ Docker**: `./cluster/scripts/docker/uninstall.sh`
-- **Dọn dẹp (Prune)**: `./cluster/scripts/docker/clean.sh` (Xóa container/image rác)
-
----
-
-### 4. Module Swarm: Cluster Orchestration
-Biến các máy lẻ thành một cụm thống nhất.
-
-#### Khởi tạo Cluster
-Script này sẽ tự động:
-1.  Khởi tạo Swarm trên node `manager`.
-2.  Lấy Join Token.
-3.  Join các node `workers` vào cluster.
-- **Script**: `./cluster/scripts/swarm/setup.sh`
-- **Playbook**: `playbooks/swarm/setup.yml`
-
-#### Rời Cluster
-Cho các node rời khỏi Swarm (Force Leave).
-- **Script**: `./cluster/scripts/swarm/leave.sh`
-
----
-
-### 5. Module Git: Quản lý Source Code
-Kéo code từ các Repository về server (ví dụ: deploy app).
-
-1.  Cấu hình danh sách Repo tại: `cluster/vars/git_repos.yaml`
-2.  Cấu hình Token tại: `cluster/vars/git_credentials.yaml`
-3.  **Chạy Script**: `./cluster/scripts/git/pull_code.sh`
-
----
-
-## ❓ Câu hỏi thường gặp
-
-**Q: Tôi có thể chạy thủ công Playbook không?**
-A: Hoàn toàn được. Script chỉ là wrapper. Ví dụ:
+**1. Không có Target (Mặc định)**
+Nếu chạy không có tham số, script sẽ thực thi trên nhóm mặc định được định nghĩa trong `home-lab.ini`.
 ```bash
-ansible-playbook -i cluster/inventory/init-home-lab.ini cluster/playbooks/os/setup.yml --tags libs
+./cluster/scripts/docker/install.sh
+# Chạy trên tất cả các host trong nhóm [docker]
 ```
 
-**Q: Làm sao để thêm server mới?**
-A: Thêm IP vào `inventory/init-home-lab.ini` và chạy lại các script setup. Sau đó thêm vào `inventory/home-lab.ini` để join vào Swarm.
+**2. Có Target (Điều khiển cụ thể)**
+Bạn có thể ghi đè nhóm mặc định để chạy trên node cụ thể hoặc nhóm tùy chỉnh.
+```bash
+# Chạy trên một node đơn lẻ
+./cluster/scripts/docker/install.sh node01
+
+# Chạy trên nhiều node (cách nhau bởi dấu phẩy)
+./cluster/scripts/docker/install.sh "node01,node02"
+
+# Chạy trên một nhóm inventory khác
+./cluster/scripts/docker/install.sh new_nodes
+```
+
+### Danh sách Script đầy đủ
+
+#### Module OS
+Cấu hình và thiết lập cơ bản cho các node.
+
+| Script | Nhóm Mặc định | Mô tả |
+|--------|---------------|-------|
+| `./cluster/scripts/os/init_connection.sh [target]` | `Servers trong init-home-lab.ini` | **Bootstrap**: Tạo và copy SSH key lên target. Yêu cầu nhập mật khẩu. |
+| `./cluster/scripts/os/install_libs.sh [target]` | `[os]` | Cài đặt thư viện hệ thống cần thiết (curl, git, python3, htop, v.v.). |
+| `./cluster/scripts/os/configure_ssh.sh [target]` | `[os]` | Bảo mật SSH: Tắt đăng nhập mật khẩu & tắt root login trực tiếp. |
+| `./cluster/scripts/os/configure_power.sh [target]` | `[os]` | Cấu hình quản lý nguồn (ngăn laptop ngủ khi gập máy). |
+| `./cluster/scripts/os/rollback.sh [target]` | `[os]` | Khôi phục cấu hình OS về mặc định. |
+| `./cluster/scripts/os/status.sh [target]` | `[os]` | Kiểm tra trạng thái OS (packages, múi giờ, config). |
+
+#### Module Docker
+Quản lý Docker Engine.
+
+| Script | Nhóm Mặc định | Mô tả |
+|--------|---------------|-------|
+| `./cluster/scripts/docker/install.sh [target]` | `[docker]` | Cài đặt Docker Engine, CLI, và Compose plugin. |
+| `./cluster/scripts/docker/clean.sh [target]` | `[docker]` | **Nguy hiểm**: Dọn dẹp tài nguyên hệ thống không dùng (containers, images, vols). |
+| `./cluster/scripts/docker/restart.sh [target]` | `[docker]` | Khởi động lại dịch vụ Docker. |
+| `./cluster/scripts/docker/uninstall.sh [target]` | `[docker]` | **Nguy hiểm**: Gỡ bỏ hoàn toàn Docker và toàn bộ dữ liệu. |
+| `./cluster/scripts/docker/status.sh [target]` | `[docker]` | Kiểm tra phiên bản Docker và tài nguyên sử dụng. |
+
+#### Module Swarm
+Quản lý điều phối Cluster.
+
+| Script | Nhóm Mặc định | Mô tả |
+|--------|---------------|-------|
+| `./cluster/scripts/swarm/init.sh` | `[manager]` | Khởi tạo Swarm Manager (Chạy cái này đầu tiên). |
+| `./cluster/scripts/swarm/add.sh [target]` | `[add_workers]` | Thêm các worker node vào cluster (dựa trên token từ manager). |
+| `./cluster/scripts/swarm/remove.sh [target]` | `[remove_workers]` | **Nguy hiểm**: Buộc node rời khỏi swarm và xóa khỏi danh sách quản lý. |
+| `./cluster/scripts/swarm/status.sh` | `[manager]` | Hiển thị trạng thái toàn bộ cluster (nodes, services, networks). |
+
+#### Module Git
+Quản lý Source Code Repository.
+
+| Script | Nhóm Mặc định | Mô tả |
+|--------|---------------|-------|
+| `./cluster/scripts/git/pull.sh [target]` | `[git]` | Clone hoặc cập nhật Git repositories đã cấu hình trên target nodes. |
+| `./cluster/scripts/git/status.sh [target]` | `[git]` | Kiểm tra trạng thái repositories (nhánh, commit, thay đổi). |
+
+## Giấy phép
+
+Được phân phối dưới giấy phép MIT License. Xem file `LICENSE` để biết thêm chi tiết.

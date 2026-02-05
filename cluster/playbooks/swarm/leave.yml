@@ -1,9 +1,0 @@
----
-- name: Force Nodes to Leave Swarm
-  hosts: all
-  become: true
-  tasks:
-    - name: Execute Leave Tasks
-      ansible.builtin.include_role:
-        name: swarm
-        tasks_from: leave

@@ -9,162 +9,182 @@
 
 **Automated system to transform old laptops into a resilient, production-ready Cloud Cluster.**
 
-[Vietnamese Version](README.md) • [Technical Blog](docs/guide-home-lab-setup.md)
+[Vietnamese Version](README.md) • [Technical Guide](docs/guide-home-lab-setup.md)
 
 </div>
 
 ---
+## Overview
 
-## 🏗 Project Architecture (Modular Monolithic)
+This project provides a comprehensive automation suite for setting up, managing, and maintaining a home laboratory infrastructure. It adopts a **modular architecture** where every component (OS, Docker, Swarm, Git) operates independently, allowing for flexible and scalable infrastructure management.
 
-The project follows a **Modular Monolithic** structure using Ansible Roles, ensuring scalability and maintainability.
+## Prerequisites
 
-```text
-cluster/
-├── inventory/          # 📋 Server List (Hosts)
-├── vars/               # 💾 Global Configs (Credentials, Repos)
-├── roles/              # 🧱 Modules (Core Logic)
-│   ├── os/             # -> OS Configuration (SSH, Power, Libs)
-│   ├── docker/         # -> Docker Engine Management
-│   ├── swarm/          # -> Docker Swarm Cluster Management
-│   └── git/            # -> Source Code Management
-├── playbooks/          # 🎬 Orchestration (Calls Roles)
-└── scripts/            # ⚡ Wrapper Scripts (Quick Execution)
-```
+- **Control Node**: Linux machine or WSL2 with Ansible installed (run `./setup_env.sh` to setup).
+- **Target Nodes**: Debian-based Linux distribution (Ubuntu 20.04/22.04 LTS recommended).
+- **Network**: All nodes must be reachable via SSH from the control node.
 
-## 🚀 Quick Run (Summary)
-
-Grant execution permissions scripts before running:
-```bash
-chmod +x cluster/scripts/*/*.sh
-```
-
-**1. Initialization (Uses `init-home-lab.ini`)**
-*   **Init SSH**: `./cluster/scripts/os/init_connection.sh` (Only step using password to copy SSH keys)
-
-**2. Setup & Operations (Uses `home-lab.ini`)**
-*   **Install Libs**: `./cluster/scripts/os/install_libs.sh os` (OS Environment Setup - uses SSH Key)
-*   **Install Docker**: `./cluster/scripts/docker/install.sh` (Install Docker)
-*   **Setup Swarm**: `./cluster/scripts/swarm/setup.sh` (Cluster Setup)
-*   **Deploy Code**: `./cluster/scripts/git/pull_code.sh` (Pull code)
-
-## 🛠 Detailed Installation Guide
-
-Follow these steps to set up your system from scratch.
-
-### 1. Prerequisites
-
-On your Control Node, run the following script to automatically install the latest Ansible and necessary dependencies:
+## Project Structure
 
 ```bash
-# Grant permission and run the setup script
-chmod +x setup_env.sh
-./setup_env.sh
-
-# After completion, refresh your terminal
-source ~/.bashrc
+home-lab/
+├── ansible.cfg                 # Ansible global configuration
+├── setup_env.sh                # Control node setup script (installs Ansible)
+├── cluster/
+│   ├── inventory/              # Inventory files
+│   │   ├── init-home-lab.ini   # For initial connection (Bootstrap)
+│   │   └── home-lab.ini        # For main operations (Root access)
+│   ├── scripts/                # Wrapper scripts (Entry points)
+│   │   ├── os/                 # OS configuration & status
+│   │   ├── docker/             # Docker management
+│   │   ├── swarm/              # Swarm cluster management
+│   │   └── git/                # Git repository management
+│   └── playbooks/              # Ansible Logic
+│       ├── os/
+│       ├── docker/
+│       ├── swarm/
+│       └── git/
 ```
 
-> **Why this script?** It ensures you have **Ansible Core 2.14+**, which is required to manage servers running Ubuntu 24.04 (Python 3.12).
+## Inventory Setup
 
-Define your servers in `cluster/inventory/init-home-lab.ini` (for initial setup):
+This project uses two distinct inventory files located in `cluster/inventory/`. You must configure both before starting.
+
+### 1. Bootstrap Inventory (`init-home-lab.ini`)
+Used **only** for the connection initialization script (`init_connection.sh`).
+
+- **Purpose**: Defines initial connection details (user, password prompt) to establish SSH keys.
+- **Key Groups**:
+  - `[servers]`: Define all nodes with their initial non-root username (e.g., `ansible_user=ubuntu`).
+  - `[os]`: Helper group to target nodes for bootstrapping.
+
+**Example**:
 ```ini
 [servers]
-node00 ansible_host=... # Control Node
-node01 ansible_host=...
+node01 ansible_host=192.168.1.10 ansible_user=ubuntu
+node02 ansible_host=192.168.1.11 ansible_user=pi
 
 [os]
-node01 # Only run OS config on these nodes
+node01
+node02
 ```
 
-And `cluster/inventory/home-lab.ini` (for everything else):
+### 2. Main Inventory (`home-lab.ini`)
+Used for **all** other operations (install, configure, deploy).
+
+- **Purpose**: Defines the cluster state for Ansible after SSH keys are set up. Connects as `root`.
+- **Key Groups**:
+  - `[os]`: Nodes receiving OS configurations (libs, ssh, power).
+  - `[docker]`: Nodes where Docker Engine will be installed.
+  - `[manager]`: The single node acting as Swarm Manager.
+  - `[add_workers]`: Worker nodes intended to be added to the Swarm.
+  - `[remove_workers]`: Nodes targeted for removal from the Swarm.
+  - `[git]`: Nodes that will pull Git repositories.
+
+**Example**:
 ```ini
+[servers]
+node01 ansible_host=192.168.1.10
+node02 ansible_host=192.168.1.11
+node03 ansible_host=192.168.1.12
+
 [os]
-node01 # OS Config
+node01
+node02
+
+[git]
+node01
+node02
 
 [docker]
-node01 # Install Docker
+node01
+node02
 
 [manager]
-node00
-[workers]
+node03
+
+[add_workers]
 node01
+node02
+
+[remove_workers]
+node01
+
+[all:vars]
+ansible_user=root
 ```
 
----
+## Usage & Scripts Guide
 
-### 2. OS Module: System Configuration
-Standardizes the Ubuntu server environment.
+All operations are executed via shell script wrappers in `cluster/scripts/`. These scripts handle the complexity of Ansible commands for you.
 
-#### Step 2.1: Bootstrap Connection
-Copies your SSH Key to all servers. You only need to enter the root password once.
-- **Script**: `./cluster/scripts/os/init_connection.sh`
-- **Playbook**: `playbooks/os/bootstrap.yml`
+### Targeting Mechanism
 
-#### Step 2.2: Install Libraries (Libs)
-Installs basic packages: `curl`, `git`, `htop`, `vim`, `net-tools`, `sensors`... and sets Timezone.
-- **Script**: `./cluster/scripts/os/install_libs.sh`
-- **Playbook**: `playbooks/os/setup.yml` (Tags: `libs`)
+Every script accepts an optional `TARGET` argument.
 
-#### Step 2.3: Power Optimization
-Prevents laptop suspension when lid is closed and disables Wi-Fi power saving to reduce latency.
-- **Script**: `./cluster/scripts/os/configure_power.sh`
-- **Playbook**: `playbooks/os/setup.yml` (Tags: `power`)
-
-#### Step 2.4: SSH Security
-Disables password login (`PasswordAuthentication no`), enforcing SSH Key-only access for security. (For Home Lab, you can re-enable this for convenience).
-- **Script**: `./cluster/scripts/os/configure_ssh.sh`
-- **Playbook**: `playbooks/os/setup.yml` (Tags: `ssh`)
-
----
-
-### 3. Docker Module: Container Management
-Automates the installation of the stable Docker Engine.
-
-#### Install Docker
-Adds repos, GPG key, and installs Docker CE + Docker Compose automatically.
-- **Script**: `./cluster/scripts/docker/install.sh`
-- **Playbook**: `playbooks/docker/setup.yml`
-
-#### Uninstall / Cleanup
-- **Uninstall**: `./cluster/scripts/docker/uninstall.sh`
-- **Cleanup (Prune)**: `./cluster/scripts/docker/clean.sh` (Removes unused containers/images)
-
----
-
-### 4. Swarm Module: Cluster Orchestration
-Turns individual nodes into a unified cluster.
-
-#### Initialize Cluster
-This script automatically:
-1.  Initializes Swarm on the `manager` node.
-2.  Retrieves the Join Token.
-3.  Joins `workers` to the cluster.
-- **Script**: `./cluster/scripts/swarm/setup.sh`
-- **Playbook**: `playbooks/swarm/setup.yml`
-
-#### Leave Cluster
-Forces nodes to leave the Swarm.
-- **Script**: `./cluster/scripts/swarm/leave.sh`
-
----
-
-### 5. Git Module: Source Code Management
-Pulls code from Repositories to the server (e.g., app deployment).
-
-1.  Configure Repos in: `cluster/vars/git_repos.yaml`
-2.  Configure Token in: `cluster/vars/git_credentials.yaml`
-3.  **Run Script**: `./cluster/scripts/git/pull_code.sh`
-
----
-
-## ❓ FAQ
-
-**Q: Can I run Playbooks manually?**
-A: Absolutely. Scripts are just wrappers. Example:
+**1. No Target (Default Behavior)**
+If run without arguments, the script executes on the specific group defined in `home-lab.ini`.
 ```bash
-ansible-playbook -i cluster/inventory/init-home-lab.ini cluster/playbooks/os/setup.yml --tags libs
+./cluster/scripts/docker/install.sh
+# Runs on all hosts in the [docker] inventory group
 ```
 
-**Q: How do I add a new server?**
-A: Add IP to `inventory/init-home-lab.ini` and re-run setup scripts. Then add to `inventory/home-lab.ini` to join Swarm.
+**2. With Target (Specific Control)**
+You can override the default group to run on specific nodes or custom groups.
+```bash
+# Run on a single node
+./cluster/scripts/docker/install.sh node01
+
+# Run on multiple nodes (comma-separated)
+./cluster/scripts/docker/install.sh "node01,node02"
+
+# Run on a different inventory group
+./cluster/scripts/docker/install.sh new_nodes
+```
+
+### Complete Script Reference
+
+#### OS Module
+Configuration and base setup for nodes.
+
+| Script | Default Group | Description |
+|--------|---------------|-------------|
+| `./cluster/scripts/os/init_connection.sh [target]` | `Servers in init-home-lab.ini` | **Bootstrap**: Generates SSH keys and copies them to targets. Requires password. |
+| `./cluster/scripts/os/install_libs.sh [target]` | `[os]` | Installs essential system libraries (curl, git, python3, htop, etc.). |
+| `./cluster/scripts/os/configure_ssh.sh [target]` | `[os]` | Hardens SSH: Disables password auth, disables root login. |
+| `./cluster/scripts/os/configure_power.sh [target]` | `[os]` | Configures power management (prevents laptop sleep on lid close). |
+| `./cluster/scripts/os/rollback.sh [target]` | `[os]` | Reverts OS configurations to defaults. |
+| `./cluster/scripts/os/status.sh [target]` | `[os]` | Checks OS status (packages, timezone, config). |
+
+#### Docker Module
+Management of Docker Engine.
+
+| Script | Default Group | Description |
+|--------|---------------|-------------|
+| `./cluster/scripts/docker/install.sh [target]` | `[docker]` | Installs Docker Engine, CLI, and Compose plugin. |
+| `./cluster/scripts/docker/clean.sh [target]` | `[docker]` | **Destructive**: Prunes unused system resources (containers, images, vols). |
+| `./cluster/scripts/docker/restart.sh [target]` | `[docker]` | Restarts the Docker service. |
+| `./cluster/scripts/docker/uninstall.sh [target]` | `[docker]` | **Destructive**: Completely removes Docker and all data. |
+| `./cluster/scripts/docker/status.sh [target]` | `[docker]` | Checks Docker version and resource usage. |
+
+#### Swarm Module
+Cluster orchestration management.
+
+| Script | Default Group | Description |
+|--------|---------------|-------------|
+| `./cluster/scripts/swarm/init.sh` | `[manager]` | Initializes the Swarm Manager (Run this first). |
+| `./cluster/scripts/swarm/add.sh [target]` | `[add_workers]` | Defines worker nodes relative to the manager and adds them to the cluster. |
+| `./cluster/scripts/swarm/remove.sh [target]` | `[remove_workers]` | **Destructive**: Forces nodes to leave swarm and removes them from manager list. |
+| `./cluster/scripts/swarm/status.sh` | `[manager]` | Displays full cluster status (nodes, services, networks). |
+
+#### Git Module
+Repository management.
+
+| Script | Default Group | Description |
+|--------|---------------|-------------|
+| `./cluster/scripts/git/pull.sh [target]` | `[git]` | Clones or updates configured Git repositories on target nodes. |
+| `./cluster/scripts/git/status.sh [target]` | `[git]` | Checks status of cloned repositories (branch, commit, diffs). |
+
+## License
+
+Distributed under the MIT License. See `LICENSE` for more information.

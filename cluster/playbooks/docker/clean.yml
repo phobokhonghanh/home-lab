@@ -1,0 +1,13 @@
+---
+- name: Clean Docker Resources
+  hosts: "{{ target | default('docker') }}"
+  become: true
+  tasks:
+    - name: Prune Docker System
+      ansible.builtin.command: docker system prune -a -f --volumes
+      register: prune_output
+      changed_when: "'Total reclaimed space: 0B' not in prune_output.stdout"
+
+    - name: Display Prune Output
+      ansible.builtin.debug:
+        msg: "{{ prune_output.stdout_lines }}"

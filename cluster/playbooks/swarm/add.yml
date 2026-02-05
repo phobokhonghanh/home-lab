@@ -1,0 +1,40 @@
+---
+- name: Retrieve Join Token (From Manager)
+  hosts: manager
+  become: true
+  vars_files:
+    - vars/main.yml
+  tasks:
+    - name: Get Swarm Status
+      ansible.builtin.shell: docker info | grep Swarm | awk '{print $2}'
+      register: manager_status
+      changed_when: false
+
+    - name: Retrieve Worker Join Token
+      ansible.builtin.command: docker swarm join-token -q worker
+      register: worker_token
+      when: manager_status.stdout == "active"
+
+    - name: Register Worker Token Fact
+      ansible.builtin.set_fact:
+        worker_join_token: "{{ worker_token.stdout }}"
+      when: worker_token.stdout is defined
+
+- name: Join Workers to Swarm
+  hosts: "{{ target | default('add_workers') }}"
+  become: true
+  vars_files:
+    - vars/main.yml
+  tasks:
+    - name: Determine Swarm Status
+      ansible.builtin.shell: docker info | grep Swarm | awk '{print $2}'
+      register: worker_swarm_status
+      changed_when: false
+      ignore_errors: true
+
+    - name: Join Swarm as Worker
+      ansible.builtin.shell: |
+        docker swarm join --token {{ hostvars[groups['manager'][0]]['worker_join_token'] }} {{ swarm_manager_ip }}:{{ swarm_port }}
+      when:
+        - worker_swarm_status.stdout != "active"
+        - hostvars[groups['manager'][0]]['worker_join_token'] is defined

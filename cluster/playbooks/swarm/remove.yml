@@ -1,0 +1,37 @@
+---
+- name: Leave Swarm (Worker Side)
+  hosts: "{{ target | default('remove_workers') }}"
+  become: true
+  ignore_unreachable: true
+  tasks:
+    - name: Check Swarm Status
+      ansible.builtin.shell: docker info | grep Swarm | awk '{print $2}'
+      register: swarm_status
+      changed_when: false
+      failed_when: false
+
+    - name: Force Leave Swarm
+      ansible.builtin.command: docker swarm leave --force
+      when: swarm_status.stdout in ["active", "pending", "error"]
+      ignore_errors: true
+
+- name: Remove Node from Swarm (Manager Side)
+  hosts: manager
+  become: true
+  tasks:
+    - name: Force Remove Nodes
+      ansible.builtin.shell: docker node rm --force {{ item }}
+      loop: "{{ groups[target | default('remove_workers')] | default([]) }}"
+      register: remove_result
+      failed_when: false
+      changed_when: "'Error' not in remove_result.stderr"
+
+    - name: Remove Single Target (if not group)
+      ansible.builtin.shell: docker node rm --force {{ target }}
+      when: target is defined and target not in groups
+      register: remove_single_result
+      failed_when: false
+
+    - name: Display Removal Result
+      ansible.builtin.debug:
+        msg: "Attempts to remove nodes completed."

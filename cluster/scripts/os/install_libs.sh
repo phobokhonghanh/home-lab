@@ -1,15 +1,15 @@
 #!/bin/bash
 # install_libs.sh
-# Purpose: Install System Dependencies (Libs) via OS Role
+# Purpose: Install System Dependencies
 
-GREEN="\033[32m"
 BLUE="\033[34m"
+YELLOW="\033[33m"
 RESET="\033[0m"
 
-echo -e "${BLUE}[!] Install Libs Module${RESET}"
+TARGET=${1:-os}
 
-# Allow targeting a specific host/group (default to 'all')
-TARGET=${1:-all}
+echo -e "${BLUE}[!] Install System Libraries${RESET}"
+echo -e "${YELLOW}[!] Target: $TARGET${RESET}"
 
 cd "$(dirname "$0")/../.." || exit
-ansible-playbook playbooks/os/setup.yml -i inventory/home-lab.ini --limit "$TARGET" --tags libs
+ansible-playbook playbooks/os/install_libs.yml -i inventory/home-lab.ini -e "target=$TARGET"

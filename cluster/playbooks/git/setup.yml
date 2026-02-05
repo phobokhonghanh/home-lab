@@ -1,9 +1,0 @@
----
-- name: Setup Git Repositories
-  hosts: git_hosts
-  become: true
-  vars_files:
-    - ../../vars/git_repos.yaml
-    - ../../vars/git_credentials.yaml
-  roles:
-    - git

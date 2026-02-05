@@ -1,0 +1,26 @@
+---
+- name: Restart Docker Service
+  hosts: "{{ target | default('docker') }}"
+  become: true
+  tasks:
+    - name: Get Swarm Status
+      ansible.builtin.shell: docker info | grep Swarm | awk '{print $2}'
+      register: swarm_status
+      changed_when: false
+
+    - name: Display the Node Swarm Status
+      ansible.builtin.debug:
+        msg: "Node has Swarm Status: {{ swarm_status.stdout }}"
+
+    - name: Restart Docker if Swarm Error
+      ansible.builtin.shell: |
+        docker system prune -f
+        systemctl restart docker.socket
+        systemctl restart docker
+      when: swarm_status.stdout == "error"
+
+    - name: Restart Docker (Force)
+      ansible.builtin.service:
+        name: docker
+        state: restarted
+      when: swarm_status.stdout != "error"
