@@ -19,7 +19,7 @@
       when: stack_status.rc == 0
 
     - name: Get Spark tasks status
-      shell: docker stack ps {{ stack_name }} --format 'table {{ "{{" }}.Name{{ "}}" }}\t{{ "{{" }}.Node{{ "}}" }}\t{{ "{{" }}.CurrentState{{ "}}" }}'
+      shell: docker stack ps {{ stack_name }} --filter "desired-state=running" --format 'table {{ "{{" }}.Name{{ "}}" }}\t{{ "{{" }}.Node{{ "}}" }}\t{{ "{{" }}.CurrentState{{ "}}" }}'
       register: tasks_status
       changed_when: false
       failed_when: false

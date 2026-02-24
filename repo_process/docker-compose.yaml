@@ -1,0 +1,105 @@
+version: "3.8"
+services:
+  #############################
+  # PROCESSING
+  #############################
+  spark-master:
+    image: bitnami/spark:3.5.1-custom
+    hostname: spark-master
+    environment:
+      - SPARK_MODE=master
+      - SPARK_MASTER_WEBUI_PORT=8080
+      - SPARK_MASTER_PORT=7077
+      - SPARK_MASTER_HOST=spark-master
+    ports:
+      - 8080:8080
+      - 7077:7077
+    volumes:
+      - ${PROJECT_DIR:-.}/docker/spark/spark-defaults.conf:/opt/bitnami/spark/conf/spark-defaults.conf
+      - ${PROJECT_DIR:-.}/docker/spark/log4j2.properties:/opt/bitnami/spark/conf/log4j2.properties
+      - ${PROJECT_DIR:-.}:/opt/home-lab/repo_process
+      - ./spark-logs:/opt/spark-logs
+    networks:
+      - template_networks
+    profiles:
+      - processing
+  spark-worker:
+    image: bitnami/spark:3.5.1-custom
+    ports:
+      - 8081:8081
+    volumes:
+      - ${PROJECT_DIR:-.}/docker/spark/spark-defaults.conf:/opt/bitnami/spark/conf/spark-defaults.conf
+      - ${PROJECT_DIR:-.}/docker/spark/log4j2.properties:/opt/bitnami/spark/conf/log4j2.properties
+      - ${PROJECT_DIR:-.}:/opt/home-lab/repo_process
+      - ./spark-logs:/opt/spark-logs
+    environment:
+      - SPARK_MODE=worker
+      - SPARK_MASTER_URL=spark://spark-master:7077
+      - SPARK_WORKER_WEBUI_PORT=8081
+      - SPARK_WORKER_MEMORY=${SPARK_WORKER_MEMORY:-'20G'}
+      - SPARK_WORKER_CORES=${SPARK_WORKER_CORES:-10}
+      - SPARK_EVENTLOG_ENABLED=true
+    networks:
+      - template_networks
+    profiles:
+      - processing
+  spark-history-server:
+    image: bitnami/spark:3.5.1-custom
+    hostname: history-server
+    ports:
+      - 18080:18080
+    command: "/opt/bitnami/spark/sbin/start-history-server.sh"
+    environment:
+      - SPARK_MASTER_URL=spark://spark-master:7077
+    depends_on:
+      - spark-master
+      - spark-worker
+    volumes:
+      - ${PROJECT_DIR:-.}/docker/spark/spark-defaults.conf:/opt/bitnami/spark/conf/spark-defaults.conf
+      - ${PROJECT_DIR:-.}/docker/spark/log4j2.properties:/opt/bitnami/spark/conf/log4j2.properties
+      - ./spark-logs:/opt/spark-logs
+    networks:
+      - template_networks
+    profiles:
+      - processing
+  pyjob:
+    image: pyjob:latest
+    hostname: pyjob
+    command: "tail -f /dev/null"
+    ports:
+      - 4040:4040
+    env_file:
+      - ${PROJECT_DIR:-.}/configs/.prod.env
+    environment:
+      - SPARK_HOME=/opt/spark
+    volumes:
+      - ${PROJECT_DIR:-.}:/opt/home-lab/repo_process
+      - ./spark-logs:/opt/spark-logs
+      - ${PROJECT_DIR:-.}/docker/spark/spark-defaults.conf:/opt/spark/conf/spark-defaults.conf
+    networks:
+      - template_networks
+    profiles:
+      - processing
+  ##########################
+  # ANALYTICS
+  ##########################
+  jupyter-lab:
+    image: jupyter-lab:latest
+    command: "python3 -m jupyterlab --ip '0.0.0.0' --no-browser --allow-root "
+    ports:
+      - 8888:8888
+    volumes:
+      - ${PROJECT_DIR:-.}:/opt/home-lab/repo_process
+    env_file:
+      - ${PROJECT_DIR:-.}/configs/.prod.env
+    environment:
+      - JUPYTER_ENABLE_LAB=yes
+    networks:
+      - template_networks
+    profiles:
+      - analytics
+networks:
+  template_networks:
+    name: template_networks
+volumes:
+  postgresql_data:

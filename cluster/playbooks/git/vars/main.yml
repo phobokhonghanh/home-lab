@@ -1,5 +1,8 @@
 ---
-git_repositories: []
+git_repositories:
+  - repo: "https://github.com/phobokhonghanh/home-lab.git"
+    dest: "/opt/home-lab"
+    version: "main"
 # Example:
 # git_repositories:
 #   - repo: "https://github.com/example/repo.git"

@@ -1,32 +1,44 @@
 ---
-- name: Copy Spark Stack Files to Cluster Nodes
-  hosts: spark_clusters
+- name: Sync Spark Stack Files (All Nodes)
+  hosts: all
   become: true
+  vars_files:
+    - vars/main.yml
   tasks:
-    - name: Copy directory from control node to target nodes
+    - name: Copy directory from control node to all cluster nodes
       synchronize:
-        src: /opt/sdp/
-        dest: /opt/sdp/
+        src: "{{ local_project_root }}/"
+        dest: /opt/home-lab/
         recursive: true
         delete: true
       delegate_to: "{{ groups['spark_managers'][0] }}"
 
-- name: Add Labels to Docker Swarm Nodes
-  hosts: spark_clusters
+    - name: Ensure Spark logging directory exists with correct permissions
+      file:
+        path: /opt/home-lab/spark-logs
+        state: directory
+        owner: "1001"
+        group: "0"
+        mode: '0777'
+
+- name: Setup New Nodes (Labels)
+  hosts: "{{ target | default('add_workers') }}"
   become: true
+  vars_files:
+    - vars/main.yml
   tasks:
     - name: Retrieve hostname
       shell: hostname
       register: node_hostname
       changed_when: false
 
-    - name: Apply labels to Docker nodes
+    - name: Apply spark_workers label to new nodes
       shell: docker node update --label-add {{ labels }}=true {{ node_hostname.stdout }}
       when: labels is defined
       delegate_to: "{{ groups['spark_managers'][0] }}"
 
-- name: Deploy Spark Stack on Docker Swarm
-  hosts: spark_managers
+- name: Deploy Spark Stack (Manager Only)
+  hosts: "{{ manager_target | default('spark_managers') }}"
   become: true
   vars_files:
     - vars/main.yml
@@ -35,35 +47,23 @@
       debug:
         msg: "Deploying stack: {{ stack_name }} with network: {{ networks }}"
 
+    - name: Check if Docker overlay network exists
+      shell: docker network inspect {{ networks }}
+      register: network_check
+      ignore_errors: true
+      changed_when: false
+
     - name: Create Docker overlay network if not exists
       shell: docker network create --driver overlay {{ networks }}
-      ignore_errors: true
+      when: network_check.rc != 0
 
-    - name: Load default environment variables from file
-      shell: grep '=' {{ default_env_file }} | grep -v '^#' | tr '\n' ' '
-      register: default_env_vars
+    - name: Load environment variables
+      shell: grep -h '=' {{ default_env_file }} {{ user_env_file }} | grep -v '^#' | tr '\n' ' '
+      register: env_vars
       changed_when: false
-      ignore_errors: true
-
-    - name: Load user environment variables from file
-      shell: grep '=' {{ user_env_file }} | grep -v '^#' | tr '\n' ' '
-      register: user_env_vars
-      changed_when: false
-      ignore_errors: true
-
-    - name: Convert environment variables to dictionary
-      set_fact:
-        docker_stack_env: "{{ default_env_vars.stdout + user_env_vars.stdout }}"
-
-    - name: Display Docker Stack deploy command
-      debug:
-        msg: |
-          DEPLOY CMD: {{ docker_stack_env }} docker stack deploy \
-          -c {{ stack_file }} \
-          --detach=true {{ stack_name }}
 
     - name: Deploy Spark Stack
       shell: |
-        {{ docker_stack_env }} docker stack deploy \
+        {{ env_vars.stdout }} docker stack deploy \
         -c {{ stack_file }} \
         --detach=true {{ stack_name }}

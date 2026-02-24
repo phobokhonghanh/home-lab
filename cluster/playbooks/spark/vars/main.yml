@@ -1,16 +1,20 @@
 ---
+# Project Configuration
+local_project_root: "{{ playbook_dir }}/../../.."
+remote_project_root: /opt/home-lab
+project_root: "{{ remote_project_root }}"
 # Spark Stack Variables
-working_dir: /opt/sdp
+working_dir: /opt/home-lab/cluster
 networks: swarm_networks
 
 # Stack Configuration
 stack_name: spark
-stack_file: "{{ working_dir }}/spark/stack/spark-stack.yml"
-default_env_file: "{{ working_dir }}/spark/stack/spark.env"
-user_env_file: "{{ working_dir }}/spark/stack/user.env"
+stack_file: "{{ working_dir }}/stacks/spark/spark-stack.yml"
+default_env_file: "{{ working_dir }}/stacks/spark/spark.env"
+user_env_file: "{{ working_dir }}/stacks/spark/user.env"
 
 # Build Configuration
-process_build_dir: /opt/repo_process
+process_build_dir: "{{ project_root }}/repo_process"
 
 # Pyjob Image
 pyjob_img_tag: pyjob:latest

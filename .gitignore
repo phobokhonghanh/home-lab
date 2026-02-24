@@ -19,3 +19,5 @@ tmp/
 # Editor
 .vscode/
 .idea/
+spark-logs/
+repo_process/spark-logs/
