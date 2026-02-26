@@ -19,9 +19,9 @@ process_build_dir: "{{ project_root }}/repo_process"
 # Pyjob Image
 pyjob_img_tag: pyjob:latest
 pyjob_target: pyjob
-pyjob_build: "DOCKER_BUILDKIT=1 docker build --progress plain -t {{ pyjob_img_tag }} -f {{ process_build_dir }}/Dockerfile --target {{ pyjob_target }} {{ process_build_dir }}"
+pyjob_build: "DOCKER_BUILDKIT=1 docker build --network host --progress plain -t {{ pyjob_img_tag }} -f {{ process_build_dir }}/Dockerfile --target {{ pyjob_target }} {{ process_build_dir }}"
 
 # Spark Custom Image
 spark_img_tag: bitnami/spark:3.5.1-custom
 spark_target: bitnami-spark-custom
-spark_build: "DOCKER_BUILDKIT=1 docker build --progress plain -t {{ spark_img_tag }} -f {{ process_build_dir }}/Dockerfile --target {{ spark_target }} {{ process_build_dir }}"
+spark_build: "DOCKER_BUILDKIT=1 docker build --network host --progress plain -t {{ spark_img_tag }} -f {{ process_build_dir }}/Dockerfile --target {{ spark_target }} {{ process_build_dir }}"

@@ -1,23 +1,88 @@
-# Ansible
+# --- OS Generated Files ---
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+[Dd]esktop.ini
+
+# --- Editor / IDE ---
+.vscode/
+!.vscode/extensions.json
+.idea/
+*.swp
+*.swo
+*~
+.history/
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+.venv/
+venv/
+ENV/
+env/
+python_venv/
+.pytest_cache/
+.coverage
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+.ipynb_checkpoints/
+
+# --- Ansible ---
 *.retry
-*.log
+ansible_output.txt
+.ansible-cache/
+inventory/template/
+# Ignore sensitive ini files if they follow a pattern
 inventory/*.ini.save
 inventory/*.ini.old
-ansible_output.txt
+# .vault_pass
 
-# SSH Keys
+# --- Docker ---
+.docker/
+*.log
+docker-compose.override.yml
+# .env
+
+# --- Project Specific ---
+spark-logs/
+repo_process/spark-logs/
+workspace/spark-warehouse/
+tmp/
+.tmp/
+
+# --- SSH Keys / Secrets ---
 id_rsa
 id_rsa.pub
 *.pem
 *.key
-
-# Temporary Files
-.DS_Store
-tmp/
-.tmp/
-
-# Editor
-.vscode/
-.idea/
-spark-logs/
-repo_process/spark-logs/
+*.pub
+*.cert
+*.crt
+*.pfx

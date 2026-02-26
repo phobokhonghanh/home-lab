@@ -15,7 +15,7 @@ x-spark-worker-common: &spark-worker-common
     - ${SPARK_PROJECT_DIR:-.}/configs/spark-defaults.conf:/opt/bitnami/spark/conf/spark-defaults.conf
     - ${SPARK_PROJECT_DIR:-.}/configs/log4j2.properties:/opt/bitnami/spark/conf/log4j2.properties
     - ${SOURCE_CODE:-./}:/opt/home-lab/repo_process
-    - /opt/home-lab/spark-logs:/opt/spark-logs
+    - spark_history_server_logs:/opt/bitnami/spark/logs
   deploy:
     mode: global
     placement:
@@ -63,7 +63,7 @@ services:
     volumes:
       - ${SPARK_PROJECT_DIR:-.}/configs/spark-defaults.conf:/opt/bitnami/spark/conf/spark-defaults.conf
       - ${SPARK_PROJECT_DIR:-.}/configs/log4j2.properties:/opt/bitnami/spark/conf/log4j2.properties
-      - /opt/home-lab/spark-logs:/opt/spark-logs
+      - spark_history_server_logs:/opt/bitnami/spark/logs
     deploy:
       replicas: 1
       placement:
@@ -85,7 +85,7 @@ services:
     volumes:
       - ${SOURCE_CODE:-./}:/opt/home-lab/repo_process
       - ${SPARK_PROJECT_DIR:-.}/configs/spark-defaults.conf:/opt/spark/conf/spark-defaults.conf
-      - /opt/home-lab/spark-logs:/opt/spark-logs
+      - spark_history_server_logs:/opt/bitnami/spark/logs
     deploy:
       replicas: 1
       placement:
@@ -95,3 +95,12 @@ networks:
   swarm_networks:
     name: ${NETWORKS_NAME:-swarm_networks}
     external: true
+
+volumes:
+  spark_history_server_logs:
+    name: spark_history_server_logs
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /opt/home-lab/spark-logs

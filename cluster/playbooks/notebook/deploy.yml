@@ -1,0 +1,75 @@
+---
+- name: Sync Notebook Stack Files (All Nodes)
+  hosts: all
+  become: true
+  vars_files:
+    - vars/main.yml
+  tasks:
+    - name: Copy directory from control node to all cluster nodes
+      synchronize:
+        src: "{{ local_project_root }}/"
+        dest: /opt/home-lab/
+        recursive: true
+        delete: true
+      delegate_to: "{{ groups['manager'][0] }}"
+
+    - name: Ensure project directory has correct base permissions
+      file:
+        path: /opt/home-lab
+        state: directory
+        mode: '0755'
+        recurse: false
+
+- name: Setup Notebook Nodes (Labels & Directories)
+  hosts: "{{ manager_target | default('notebook_managers') }}"
+  become: true
+  tasks:
+    - name: Ensure Notebook directories exist with shared permissions (root)
+      file:
+        path: "{{ item }}"
+        state: directory
+        mode: '0777'
+      with_items:
+        - /opt/home-lab/workspace
+        - /opt/home-lab/spark-logs
+        - /opt/home-lab/repo_process
+
+    - name: Retrieve hostname
+      command: hostname
+      register: node_hostname
+
+    - name: Apply notebook_managers label to nodes
+      shell: "docker node update --label-add notebook_managers=true {{ node_hostname.stdout }}"
+      delegate_to: "{{ groups['manager'][0] }}"
+      changed_when: true
+
+- name: Deploy Notebook Stack (Manager Only)
+  hosts: "{{ manager_target | default('manager') }}"
+  become: true
+  vars_files:
+    - vars/main.yml
+  tasks:
+    - name: Log stack deployment info
+      debug:
+        msg: "Deploying stack: {{ stack_name }} with network: {{ networks }}"
+
+    - name: Check if Docker overlay network exists
+      shell: docker network inspect {{ networks }}
+      register: network_check
+      ignore_errors: true
+      changed_when: false
+
+    - name: Create Docker overlay network if not exists
+      shell: docker network create --driver overlay {{ networks }}
+      when: network_check.rc != 0
+
+    - name: Load environment variables
+      shell: grep -h '=' {{ default_env_file }} {{ user_env_file }} | grep -v '^#' | tr '\n' ' '
+      register: env_vars
+      changed_when: false
+
+    - name: Deploy Notebook Stack
+      shell: |
+        {{ env_vars.stdout }} docker stack deploy \
+        -c {{ stack_file }} \
+        --detach=true {{ stack_name }}

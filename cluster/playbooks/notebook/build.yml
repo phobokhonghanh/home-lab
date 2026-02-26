@@ -1,0 +1,38 @@
+---
+- name: Sync Notebook Stack Files (All Nodes)
+  hosts: all
+  become: true
+  vars_files:
+    - vars/main.yml
+  tasks:
+    - name: Copy directory from control node to all cluster nodes
+      synchronize:
+        src: "{{ local_project_root }}/"
+        dest: "{{ remote_project_root }}/"
+        recursive: true
+        delete: true
+      delegate_to: "{{ groups['manager'][0] }}"
+
+- name: Build Notebook Docker Images on Targeted Nodes
+  hosts: "{{ target | default('notebook_managers') }}"
+  become: true
+  vars_files:
+    - vars/main.yml
+  tasks:
+    - name: Build Docker Image - jupyter-lab
+      shell: "{{ jupyter_build }} 2>&1 | tee notebooks_build.log"
+      args:
+        chdir: "{{ process_build_dir }}"
+      register: notebooks_output
+      changed_when: "'Successfully built' in notebooks_output.stdout or 'Successfully tagged' in notebooks_output.stdout"
+
+    - name: Show notebooks build logs
+      debug:
+        var: notebooks_output.stdout_lines
+
+    - name: Remove dangling Docker images
+      shell: |
+        docker images -q -f "dangling=true" | xargs -r docker rmi
+      register: clean_images
+      changed_when: clean_images.rc == 0
+      ignore_errors: true

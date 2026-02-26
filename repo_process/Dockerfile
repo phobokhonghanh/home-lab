@@ -2,7 +2,7 @@
 # Python Job
 #############################
 # Start with Python 3.11.9 (Bullseye-based) as the base image
-FROM python:3.11.9-slim-bullseye as pyjob
+FROM python:3.11.9-slim-bullseye AS pyjob
 WORKDIR /opt/home-lab/repo_process
 # ENV PS1="root@\h: # "
 # Set environment variables for Spark installation
@@ -21,14 +21,11 @@ RUN apt-get update && apt-get install -y \
     wget \
     unzip \
     && rm -rf /var/lib/apt/lists/*
-RUN pip install --no-cache-dir --upgrade pip setuptools wheel \
-    && pip install --no-cache-dir -r requirements.txt
+RUN python3 -m pip install --no-cache-dir --upgrade pip setuptools wheel \
+    && python3 -m pip install --no-cache-dir -r requirements.txt python-dateutil
 
-# Download and install Apache Spark
-RUN wget https://archive.apache.org/dist/spark/spark-${SPARK_VERSION}/spark-${SPARK_VERSION}-bin-hadoop${HADOOP_VERSION}.tgz \
-    && tar -xzf spark-${SPARK_VERSION}-bin-hadoop${HADOOP_VERSION}.tgz -C /opt/ \
-    && rm spark-${SPARK_VERSION}-bin-hadoop${HADOOP_VERSION}.tgz \
-    && mv /opt/spark-${SPARK_VERSION}-bin-hadoop${HADOOP_VERSION} /opt/spark
+# Use bitnamilegacy/spark:3.5.1 to copy Spark binaries instead of downloading
+COPY --from=bitnamilegacy/spark:3.5.1 /opt/bitnami/spark /opt/spark
 
 COPY . .
 RUN sh scripts/build-project.sh \
@@ -37,15 +34,15 @@ RUN sh scripts/build-project.sh \
 #############################
 # Custom Bitnami/Spark
 #############################
-FROM bitnamilegacy/spark:3.5.1 as bitnami-spark-custom
+FROM bitnamilegacy/spark:3.5.1 AS bitnami-spark-custom
 USER root
 WORKDIR /opt/home-lab/repo_process
 
 COPY ./requirements.txt .
 
 RUN apt update -y \
-    && pip install --no-cache-dir --upgrade pip setuptools wheel \
-    && pip install --no-cache-dir -r requirements.txt
+    && python3 -m pip install --no-cache-dir --upgrade pip setuptools wheel \
+    && python3 -m pip install --no-cache-dir -r requirements.txt python-dateutil
 
 COPY . .
 RUN sh scripts/build-project.sh \
@@ -54,15 +51,16 @@ RUN sh scripts/build-project.sh \
 #############################
 # Jupyter Lab
 #############################
-FROM bitnamilegacy/spark:3.5.1 as jupyter-lab
+FROM bitnamilegacy/spark:3.5.1 AS jupyter-lab
 
 USER root
 WORKDIR /opt/home-lab/repo_process
 
 COPY requirements.txt .
 RUN apt update -y \
-    && pip install --no-cache-dir jupyterlab==4.2.0 \
-    && pip install --no-cache-dir -r requirements.txt
+    && python3 -m pip install --no-cache-dir --upgrade pip setuptools wheel \
+    && python3 -m pip install --no-cache-dir jupyterlab==4.2.0 \
+    && python3 -m pip install --no-cache-dir -r requirements.txt python-dateutil
 
 ENV PYTHONPATH="${PYTHONPATH}:/opt/home-lab/repo_process"
 

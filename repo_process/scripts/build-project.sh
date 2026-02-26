@@ -11,7 +11,7 @@ echo $build_dirpath
 
 # Install package-python in editable mode (developer) -> Exec from source code
 pip install -r requirements.txt
-python3 -m pip install --editable $build_dirpath --log $build_dirpath/build-log.txt
+python3 -m pip install --editable $build_dirpath --no-build-isolation --log $build_dirpath/build-log.txt
 
 # Install package and copied to Python Environment (non-editable) -> Exec from python environment (not editable)
 # python3 -m pip install $build_dirpath --log $build_dirpath/build-log.txt
