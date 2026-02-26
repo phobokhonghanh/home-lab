@@ -1,0 +1,19 @@
+---
+- name: Remove Specific Nodes from Spark Cluster (Unlabel Only)
+  hosts: "{{ target | default('remove_workers') }}"
+  become: true
+  vars_files:
+    - vars/main.yml
+  tasks:
+    - name: Get hostname of the node
+      shell: hostname
+      register: node_hostname
+      changed_when: false
+
+    - name: Remove Spark Worker labels from node
+      shell: |
+        docker node update --label-rm spark_workers=true {{ node_hostname.stdout }}
+        docker node update --label-rm spark_workers {{ node_hostname.stdout }}
+      delegate_to: "{{ groups['spark_managers'][0] }}"
+      ignore_errors: true
+      when: node_hostname.stdout is defined

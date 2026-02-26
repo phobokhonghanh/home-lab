@@ -1,0 +1,57 @@
+---
+- name: Phase 1 - Destroy Spark Stack (Manager)
+  hosts: spark_managers
+  become: true
+  vars_files:
+    - vars/main.yml
+  tasks:
+    - name: Check if the stack exists
+      shell: docker stack ls | grep '{{ stack_name }}' | awk '{print $1}'
+      register: stack_exists
+      changed_when: false
+      ignore_errors: true
+
+    - name: Remove the Docker stack
+      command: docker stack rm {{ stack_name }}
+      when: stack_exists.rc == 0
+      register: stack_removed
+
+    - name: Wait for stack removal to complete
+      shell: docker stack ps {{ stack_name }}
+      register: stack_ps
+      retries: 10
+      delay: 5
+      until: stack_ps.rc != 0
+      when: stack_removed.changed
+      ignore_errors: true
+
+- name: Phase 2 - Absolute Cleanup on All Nodes
+  hosts: spark_clusters
+  become: true
+  vars_files:
+    - vars/main.yml
+  tasks:
+    - name: Get hostname for unlabeling
+      shell: hostname
+      register: node_hostname
+      changed_when: false
+
+    - name: Force remove all Spark related labels
+      shell: |
+        docker node update --label-rm spark_workers=true {{ node_hostname.stdout }}
+        docker node update --label-rm spark_workers {{ node_hostname.stdout }}
+      delegate_to: "{{ groups['spark_managers'][0] }}"
+      ignore_errors: true
+
+    - name: Delete project directory (/opt/home-lab)
+      file:
+        path: "/opt/home-lab"
+        state: absent
+
+    - name: Nuclear Docker Cleanup (Prune Everything)
+      shell: |
+        docker container prune -f
+        docker network prune -f
+        docker image prune -a -f
+        docker system prune -a -f
+      ignore_errors: true

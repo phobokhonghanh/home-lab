@@ -1,0 +1,27 @@
+---
+# Project Configuration
+local_project_root: "{{ playbook_dir }}/../../.."
+remote_project_root: /opt/home-lab
+project_root: "{{ remote_project_root }}"
+# Spark Stack Variables
+working_dir: /opt/home-lab/cluster
+networks: swarm_networks
+
+# Stack Configuration
+stack_name: spark
+stack_file: "{{ working_dir }}/stacks/spark/spark-stack.yml"
+default_env_file: "{{ working_dir }}/stacks/spark/spark.env"
+user_env_file: "{{ working_dir }}/stacks/spark/user.env"
+
+# Build Configuration
+process_build_dir: "{{ project_root }}/repo_process"
+
+# Pyjob Image
+pyjob_img_tag: pyjob:latest
+pyjob_target: pyjob
+pyjob_build: "DOCKER_BUILDKIT=1 docker build --network host --progress plain -t {{ pyjob_img_tag }} -f {{ process_build_dir }}/Dockerfile --target {{ pyjob_target }} {{ process_build_dir }}"
+
+# Spark Custom Image
+spark_img_tag: bitnami/spark:3.5.1-custom
+spark_target: bitnami-spark-custom
+spark_build: "DOCKER_BUILDKIT=1 docker build --network host --progress plain -t {{ spark_img_tag }} -f {{ process_build_dir }}/Dockerfile --target {{ spark_target }} {{ process_build_dir }}"

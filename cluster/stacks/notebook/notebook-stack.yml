@@ -1,0 +1,43 @@
+---
+version: "3.9"
+services:
+  jupyter-lab:
+    image: jupyter-lab:latest
+    command: ${CONTAINER_CMD:-python3 -m jupyterlab --config=/.jupyter/jupyter_server_config.py}
+    ports:
+      - target: ${NOTEBOOK_PORT:-8888}
+        published: ${NOTEBOOK_PORT_PUBLISHED:-8888}
+        mode: host
+    volumes:
+      - ${REMOTE_PROJECT_ROOT:-/opt/home-lab}/cluster/stacks/notebook/configs/jupyter_server_config.py:/.jupyter/jupyter_server_config.py
+      - /opt/home-lab/cluster/stacks/spark/configs/spark-defaults.conf:/opt/bitnami/spark/conf/spark-defaults.conf
+      - /opt/home-lab/cluster/stacks/spark/configs/log4j2.properties:/opt/bitnami/spark/conf/log4j2.properties
+      - ${NOTEBOOK_WORKING_DIR:-/opt/home-lab/workspace}:/opt/workspace
+      - ${SOURCE_CODE:-/opt/home-lab/repo_process}:/opt/home-lab/repo_process
+      - spark_history_server_logs:/opt/bitnami/spark/logs
+    env_file:
+      - notebook.env
+      - user.env
+    environment:
+      - JUPYTER_ENABLE_LAB=yes
+    networks:
+      - swarm_networks
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.labels.notebook_managers==true
+
+networks:
+  swarm_networks:
+    name: ${NETWORKS_NAME:-swarm_networks}
+    external: true
+
+volumes:
+  spark_history_server_logs:
+    name: spark_history_server_logs
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /opt/home-lab/spark-logs

@@ -1,0 +1,24 @@
+---
+- name: Check Notebook Stack Status
+  hosts: "{{ manager_target | default('manager') }}"
+  become: true
+  vars_files:
+    - vars/main.yml
+  tasks:
+    - name: Get stack services
+      shell: docker stack services {{ stack_name }}
+      register: stack_services
+      changed_when: false
+
+    - name: Display stack services
+      debug:
+        var: stack_services.stdout_lines
+
+    - name: Get stack tasks
+      shell: docker stack ps {{ stack_name }} --no-trunc
+      register: stack_tasks
+      changed_when: false
+
+    - name: Display stack tasks
+      debug:
+        var: stack_tasks.stdout_lines

@@ -1,0 +1,14 @@
+---
+- name: Remove Notebook Stack
+  hosts: "{{ manager_target | default('manager') }}"
+  become: true
+  vars_files:
+    - vars/main.yml
+  tasks:
+    - name: Remove Docker stack
+      shell: docker stack rm {{ stack_name }}
+      ignore_errors: true
+
+    - name: Prune Docker resources (optional)
+      shell: docker system prune -f
+      when: prune | default(false) | bool

@@ -1,0 +1,21 @@
+---
+# Project Configuration
+local_project_root: "{{ playbook_dir }}/../../.."
+remote_project_root: /opt/home-lab
+project_root: "{{ remote_project_root }}"
+
+# Notebook Stack Variables
+working_dir: /opt/home-lab/cluster
+networks: swarm_networks
+
+# Stack Configuration
+stack_name: notebook
+stack_file: "{{ working_dir }}/stacks/notebook/notebook-stack.yml"
+default_env_file: "{{ working_dir }}/stacks/notebook/notebook.env"
+user_env_file: "{{ working_dir }}/stacks/notebook/user.env"
+
+# Build Configuration
+process_build_dir: "{{ project_root }}/repo_process"
+jupyter_img_tag: latest
+jupyter_target: jupyter-lab
+jupyter_build: "DOCKER_BUILDKIT=1 docker build --network host --progress plain -t {{ jupyter_target }}:{{ jupyter_img_tag }} -f {{ process_build_dir }}/Dockerfile --target {{ jupyter_target }} {{ process_build_dir }}"

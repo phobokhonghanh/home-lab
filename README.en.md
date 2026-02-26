@@ -16,7 +16,7 @@
 ---
 ## Overview
 
-This project provides a comprehensive automation suite for setting up, managing, and maintaining a home laboratory infrastructure. It adopts a **modular architecture** where every component (OS, Docker, Swarm, Git) operates independently, allowing for flexible and scalable infrastructure management.
+This project provides a comprehensive automation suite for setting up, managing, and maintaining a home laboratory infrastructure. It adopts a **modular architecture** where every component (OS, Docker, Swarm, Git, Spark, Notebook) operates independently. The system specifically addresses complex networking issues (such as MTU mismatch on Tailscale) and ensures a synchronized, robust Docker build process.
 
 ## Prerequisites
 
@@ -184,6 +184,74 @@ Repository management.
 |--------|---------------|-------------|
 | `./cluster/scripts/git/pull.sh [target]` | `[git]` | Clones or updates configured Git repositories on target nodes. |
 | `./cluster/scripts/git/status.sh [target]` | `[git]` | Checks status of cloned repositories (branch, commit, diffs). |
+
+#### Spark Module
+Deploy Apache Spark Cluster on Docker Swarm.
+
+| Script | Default Group | Description |
+|--------|---------------|-------------|
+| `./cluster/scripts/spark/deploy.sh` | `[spark_managers]` | Deploys Spark stack (master, worker, history server, pyjob). |
+| `./cluster/scripts/spark/remove.sh` | `[spark_managers]` | **Destructive**: Removes Spark stack and cleans Docker resources. |
+| `./cluster/scripts/spark/build.sh [target]` | `[spark_clusters]` | Builds custom Docker images (pyjob, spark-custom). |
+| `./cluster/scripts/spark/status.sh` | `[spark_managers]` | Checks Spark stack status (services, tasks). |
+| `./cluster/scripts/spark/clean.sh` | `[spark_clusters]` | **Destructive**: Removes the stack, all data files, and prunes images across the cluster. |
+
+#### Notebook Module
+Deploy Apache Spark Cluster on Docker Swarm.
+
+| Script | Default Group | Description |
+|--------|---------------|-------------|
+| `./cluster/scripts/notebook/deploy.sh` | `[manager]` | Deploys Notebook stack. |
+| `./cluster/scripts/notebook/build.sh` | `[manager]` | Builds Jupyter Lab Docker image on nodes. |
+| `./cluster/scripts/notebook/remove.sh` | `[manager]` | Removes Notebook stack. |
+| `./cluster/scripts/notebook/status.sh` | `[manager]` | Checks Notebook stack status (services, tasks). |
+
+**Inventory Groups for Spark:**
+- `[spark_managers]`: Node running Spark Master and History Server.
+- `[spark_workers]`: Nodes running Spark Workers.
+- `[spark_clusters]`: All Spark nodes (managers + workers combined).
+
+**Stack Path:** `cluster/stacks/spark/` contains compose file and configs.
+
+**Inventory Groups for Notebook:**
+- `[notebook_managers]`: Nodes preferred to run the Jupyter Lab service.
+
+**Stack Path:** `cluster/stacks/notebook/` contains compose file and configs.
+221:
+222: ## Advanced Build Features
+223:
+224: The system integrates smart build mechanisms to overcome common laboratory environment constraints:
+225:
+226: - **MTU Handling (Tailscale/VPN)**: Uses `--network host` during Docker builds to prevent packet loss for large HTTPS requests when the virtual network MTU (1280) is lower than the Docker default (1500).
+227: - **Synchronized Builds**: Both Spark and Notebook share a single multi-stage Dockerfile at `repo_process/`, ensuring library and environment consistency.
+228: - **Layer Optimization**: Uses `bitnamilegacy/spark` as a base layer to avoid downloading Spark binaries from the internet, minimizing connection timeout errors.
+229: - **Dependency Management**: Automatically upgrades `pip`, `setuptools`, `wheel` and pre-installs build dependencies (`python-dateutil`) to ensure that `home-lab` package installation in editable mode (`-e .`) always succeeds.
+
+## Development
+
+This project uses `pre-commit` to ensure code quality and adhere to formatting rules.
+
+### Setup and Usage
+
+1. **Install pre-commit**:
+   ```bash
+   pip install pre-commit
+   ```
+
+2. **Install hooks**:
+   ```bash
+   pre-commit install
+   ```
+
+3. **Run manually on all files**:
+   ```bash
+   pre-commit run --all-files
+   ```
+
+The system will automatically check:
+- YAML configuration (`check-yaml`).
+- End of file fixers and trailing whitespace.
+- Ansible Lint to ensure best practices for playbooks.
 
 ## License
 
