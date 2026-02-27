@@ -1,0 +1,101 @@
+---
+version: "3.9"
+services:
+  postgres:
+    image: postgres:13
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
+    networks:
+      - swarm_networks
+    deploy:
+      placement:
+        constraints:
+          - node.hostname == worker2-Latitude-E7470
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U airflow"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  airflow-webserver:
+    image: ${AIRFLOW_IMAGE:-apache/airflow:2.10.3-python3.10-custom}
+    user: ${AIRFLOW_USER_ID:-0}:${AIRFLOW_GROUP_ID:-0}
+    hostname: airflow
+    environment:
+      AIRFLOW__CORE__EXECUTOR: ${AIRFLOW__CORE__EXECUTOR:-LocalExecutor}
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: ${AIRFLOW__DATABASE__SQL_ALCHEMY_CONN:-postgresql+psycopg2://airflow:airflow@postgres:5432/airflow}
+      AIRFLOW__DATABASE__LOAD_DEFAULT_CONNECTIONS: ${AIRFLOW__DATABASE__LOAD_DEFAULT_CONNECTIONS:-false}
+      AIRFLOW__WEBSERVER__DAG_ORIENTATION: ${AIRFLOW__WEBSERVER__DAG_ORIENTATION:-TB}
+      AIRFLOW__WEBSERVER__RBAC: ${AIRFLOW__WEBSERVER__RBAC:-True}
+      AIRFLOW__OPENMETADATA_AIRFLOW_APIS__DAG_GENERATED_CONFIGS: ${AIRFLOW__OPENMETADATA_AIRFLOW_APIS__DAG_GENERATED_CONFIGS:-/opt/airflow/dags_openmetadata}
+      AIRFLOW__API__AUTH_BACKENDS: ${AIRFLOW__API__AUTH_BACKENDS:-airflow.api.auth.backend.basic_auth,airflow.api.auth.backend.session}
+      PYTHONPATH: ${PYTHONPATH:-/opt/home-lab/repo_workflow}
+    ports:
+      - target: ${AIRFLOW_PORT:-8080}
+        published: ${AIRFLOW_PORT_PUBLISHED:-9080}
+        mode: host
+    volumes:
+      - ${SOURCE_CODE:-/opt/home-lab/repo_workflow}/dags:/opt/airflow/dags
+      - ${SOURCE_CODE:-/opt/home-lab/repo_workflow}:/opt/home-lab/repo_workflow
+      - ${AIRFLOW_ROOT_DIR:-.}/requirements.txt:/opt/airflow/requirements.txt
+      - ${USER_HOME_DIR:-/root}/.ssh/id_rsa:/root/.ssh/id_rsa:ro
+    entrypoint: >
+      /bin/bash -c "
+        echo 'Waiting for postgres...' &&
+        while ! nc -z postgres 5432; do
+          sleep 1
+        done &&
+        echo 'Postgres is up - checking db' &&
+        airflow db migrate &&
+        echo 'Initializing user...' &&
+        airflow users create --username admin --password admin --firstname Admin --lastname User --role Admin --email admin@example.com || true &&
+        echo 'Starting webserver...' &&
+        airflow webserver"
+    networks:
+      - swarm_networks
+    depends_on:
+      - postgres
+    deploy:
+      replicas: ${AIRFLOW_WEBSERVER_REPLICAS:-1}
+      placement:
+        constraints:
+          - node.hostname == worker2-Latitude-E7470
+
+  airflow-scheduler:
+    image: ${AIRFLOW_IMAGE:-apache/airflow:2.10.3-python3.10-custom}
+    user: ${AIRFLOW_USER_ID:-0}:${AIRFLOW_GROUP_ID:-0}
+    environment:
+      AIRFLOW__CORE__EXECUTOR: ${AIRFLOW__CORE__EXECUTOR:-LocalExecutor}
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: ${AIRFLOW__DATABASE__SQL_ALCHEMY_CONN:-postgresql+psycopg2://airflow:airflow@postgres:5432/airflow}
+      PYTHONPATH: ${PYTHONPATH:-/opt/home-lab/repo_workflow}
+    volumes:
+      - ${SOURCE_CODE:-/opt/home-lab/repo_workflow}/dags:/opt/airflow/dags
+      - ${SOURCE_CODE:-/opt/home-lab/repo_workflow}:/opt/home-lab/repo_workflow
+      - ${AIRFLOW_ROOT_DIR:-.}/requirements.txt:/opt/airflow/requirements.txt
+      - ${USER_HOME_DIR:-/root}/.ssh/id_rsa:/root/.ssh/id_rsa:ro
+    entrypoint: >
+      /bin/bash -c "
+        echo 'Waiting for postgres...' &&
+        while ! nc -z postgres 5432; do
+          sleep 1
+        done &&
+        echo 'Postgres is up - starting scheduler' &&
+        airflow scheduler"
+    depends_on:
+      - postgres
+      - airflow-webserver
+    networks:
+      - swarm_networks
+    deploy:
+      replicas: ${AIRFLOW_SCHEDULER_REPLICAS:-1}
+      placement:
+        constraints:
+          - node.hostname == worker2-Latitude-E7470
+    command: [airflow, scheduler]
+
+networks:
+  swarm_networks:
+    name: ${NETWORKS_NAME:-swarm_networks}
+    external: true

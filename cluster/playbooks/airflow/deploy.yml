@@ -1,0 +1,65 @@
+---
+- name: Sync Airflow configuration to nodes
+  hosts: airflow_workers, airflow_managers
+  vars_files:
+    - vars/main.yml
+  tasks:
+    - name: Ensure destination directory exists
+      ansible.builtin.file:
+        path: "{{ working_dir }}/stacks/airflow"
+        state: directory
+        mode: '0755'
+      become: true
+
+    - name: Copy Airflow stack to target nodes
+      synchronize:
+        src: "{{ local_project_root }}/cluster/stacks/airflow/"
+        dest: "{{ working_dir }}/stacks/airflow/"
+        recursive: true
+        delete: true
+      delegate_to: localhost
+
+    - name: Copy Workflow repository to target nodes
+      synchronize:
+        src: "{{ local_project_root }}/repo_workflow/"
+        dest: "{{ remote_project_root }}/repo_workflow/"
+        recursive: true
+        delete: true
+      delegate_to: localhost
+
+- name: Add Labels to Docker Swarm Nodes
+  hosts: airflow_workers
+  become: true
+  tasks:
+    - name: Retrieve hostname
+      shell: hostname
+      register: node_hostname
+      changed_when: false
+
+    - name: Apply labels to Docker nodes
+      shell: docker node update --label-add workflow_managers=true {{ node_hostname.stdout }}
+      delegate_to: "{{ inventory_hostname }}"
+
+- name: Deploy Airflow Stack on Docker Swarm
+  hosts: airflow_managers
+  become: true
+  vars_files:
+    - vars/main.yml
+  tasks:
+    - name: Create Docker overlay network if not exists
+      shell: docker network create --driver overlay {{ networks }}
+      ignore_errors: true
+
+    - name: Load environment variables
+      shell: |
+        grep '=' {{ default_env_file }} | grep -v '^#' | tr '\n' ' '
+        grep '=' {{ user_env_file }} | grep -v '^#' | tr '\n' ' '
+      register: env_vars
+      changed_when: false
+      ignore_errors: true
+
+    - name: Deploy Airflow Stack
+      shell: |
+        {{ env_vars.stdout }} docker stack deploy \
+        -c {{ stack_file }} \
+        --detach=true {{ stack_name }}

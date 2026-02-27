@@ -68,7 +68,11 @@ inventory/*.ini.old
 .docker/
 *.log
 docker-compose.override.yml
-# .env
+# Environment Files
+.env
+.env.*
+*.env
+!.env.example
 
 # --- Project Specific ---
 spark-logs/
