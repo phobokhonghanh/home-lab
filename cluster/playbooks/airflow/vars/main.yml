@@ -1,0 +1,20 @@
+---
+# Project Configuration
+local_project_root: "{{ playbook_dir }}/../../.."
+remote_project_root: /opt/home-lab
+project_root: "{{ remote_project_root }}"
+# Airflow Stack Variables
+working_dir: /opt/home-lab/cluster
+networks: swarm_networks
+
+# Stack Configuration
+stack_name: airflow
+stack_file: "{{ working_dir }}/stacks/airflow/airflow-stack.yml"
+default_env_file: "{{ working_dir }}/stacks/airflow/airflow.env"
+user_env_file: "{{ working_dir }}/stacks/airflow/user.env"
+
+# Build Configuration
+process_build_dir: "{{ project_root }}/repo_workflow"
+airflow_img_tag: apache/airflow:2.10.3-python3.10-custom
+airflow_target: airflow_custom
+airflow_build: "DOCKER_BUILDKIT=1 docker build --no-cache --network host --progress plain -t {{ airflow_img_tag }} -f {{ process_build_dir }}/Dockerfile --target {{ airflow_target }} {{ process_build_dir }}"

@@ -1,0 +1,35 @@
+---
+- name: Build Airflow Custom Image on Nodes
+  hosts: airflow_workers
+  vars_files:
+    - vars/main.yml
+  tasks:
+    - name: Ensure repo_workflow directory exists
+      ansible.builtin.file:
+        path: "{{ process_build_dir }}"
+        state: directory
+        mode: '0755'
+      become: true
+
+    - name: Sync repo_workflow to nodes
+      synchronize:
+        src: "{{ local_project_root }}/repo_workflow/"
+        dest: "{{ process_build_dir }}/"
+        recursive: true
+        delete: true
+      delegate_to: localhost
+
+    - name: Build Airflow Custom Image
+      ansible.builtin.shell: "{{ airflow_build }} 2>&1 | tee {{ process_build_dir }}/airflow_build.log"
+      args:
+        chdir: "{{ process_build_dir }}"
+      register: airflow_output
+
+    - name: Show Airflow build logs
+      ansible.builtin.debug:
+        var: airflow_output.stdout
+
+    - name: Remove dangling Docker images
+      ansible.builtin.shell: |
+        docker images -q -f "dangling=true" | xargs -r docker rmi
+      ignore_errors: true

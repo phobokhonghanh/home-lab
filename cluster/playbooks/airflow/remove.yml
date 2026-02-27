@@ -1,0 +1,10 @@
+---
+- name: Remove Airflow Stack from Swarm
+  hosts: manager
+  become: true
+  vars_files:
+    - vars/main.yml
+  tasks:
+    - name: Remove Docker Stack
+      shell: docker stack rm {{ stack_name }}
+      ignore_errors: true
